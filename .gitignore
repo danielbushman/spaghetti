@@ -1,24 +1,32 @@
-# Compiled Object files, Static and Dynamic libs (Shared Objects)
-*.o
-*.a
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
 *.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
 
-# Folders
-_obj
-_test
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
-# Architecture specific extensions/prefixes
-*.[568vq]
-[568vq].out
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
 
-*.cgo1.go
-*.cgo2.c
-_cgo_defun.c
-_cgo_gotypes.go
-_cgo_export.*
-
-_testmain.go
-
-*.exe
-*.test
-*.prof
+# Game state (local only)
+*.sqlite
+*.sqlite3
+*.db
+spaghetti.state.json
