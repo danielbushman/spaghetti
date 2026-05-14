@@ -27,7 +27,10 @@
   <BlinkingLight />
   <span class="title">spaghetti :: <span class="sub">awakening</span></span>
   <span class="status">
-    <ThinkingIndicator active={indicatorActive} label={indicatorLabel} />
+    <!-- Subtle in the header — ambient signal, not where the operator
+         is looking. The full-animation copy lives inline in the empty
+         agent bubble at the edge of the conversation. -->
+    <ThinkingIndicator active={indicatorActive} label={indicatorLabel} subtle />
   </span>
   <SpeedSlider />
   <ModelSelect bind:value={selectedModel} />
