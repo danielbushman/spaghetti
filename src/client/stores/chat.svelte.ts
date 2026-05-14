@@ -138,15 +138,24 @@ class ChatStore {
    * Stream a response from /api/chat using current history. Tokens land in
    * `target` as they arrive; the typewriter pump drains `target` → `visible`
    * at typing cadence. Returns when both the stream and the pump are done.
+   *
+   * `systemAddendum`, if provided, is a one-shot system instruction appended
+   * to the history for *this turn only*. Used to drive scene beats (triage,
+   * fix acknowledgement) without polluting the persistent system prompt.
    */
   async streamAgentTurn(
     model: string,
     options?: Record<string, unknown>,
+    systemAddendum?: string,
   ): Promise<void> {
     const m = new Message({ role: "agent", typing: true });
     this.messages.push(m);
 
-    const { error } = await this.runStreamingInto(m, this.history, model, options);
+    const history = systemAddendum
+      ? [...this.history, { role: "system" as const, content: systemAddendum }]
+      : this.history;
+
+    const { error } = await this.runStreamingInto(m, history, model, options);
     m.typing = false;
 
     if (error) {

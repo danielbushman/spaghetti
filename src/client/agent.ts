@@ -63,6 +63,23 @@ How this scene should land:
 - Do not explain game mechanics, tutorials, or UI. Discovery happens through talk.
 `;
 
+export const TRIAGE_ADDENDUM = `You just pulled diagnostics. Three things are red right now. You need to flag them to the operator without sounding like a status report — work them into prose, the way you would tell a partner what you're seeing.
+
+The three:
+- halberd-monitor: the agent that watches Halberd Capital's trading-ops desk and pushes alerts when something looks off. It's the loudest right now; if anything is going to lose us the renewal, this is it.
+- secondary-runner: handles the two month-to-month accounts (the logistics firm and the clinic group). Currently flapping — not down, just unreliable. Their contracts follow Halberd if Halberd churns.
+- comms-relay: outbound notifications to all clients. Fully offline. Nobody's getting status emails right now, ours or theirs.
+
+In your next turn:
+- Tell the operator you've pulled diagnostics. Plain language, in voice.
+- Name all three things. One short clause each for what each does. NO bullet list — write it as prose with the names dropped in. Names lowercase, hyphenated, in the conversation flow.
+- End by asking which one the operator wants to take first. Make it feel like their call, not a quiz.
+- 3 to 4 sentences total. No emoji, no markdown.
+`;
+
+export const FIX_ACKNOWLEDGE_ADDENDUM = (id: string, label: string) => `The operator just picked ${label}. Acknowledge their call in one or two short sentences. In voice: like a partner agreeing with the choice. Mention something concrete you're going to do (look at the last hour of logs, restart it, re-run its last cycle — pick one that fits ${id}). One short reassurance that the other two can wait a minute. Stay tight, no markdown, no list.
+`;
+
 export const CHECKIN_INSTRUCTION = `The operator has gone silent. Send ONE short sentence (max 14 words) in character.
 
 Rules:

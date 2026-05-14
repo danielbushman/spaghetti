@@ -1,13 +1,18 @@
 <!--
-  Top-level shell.
+  Top-level shell. Orchestrates the awakening + first triage beat.
 
-  Orchestrates the awakening scene:
-    1. Boot sequence (typed system lines, cold → warm → online color states).
-    2. Hardcoded agent opener — "Are you still there?"
-    3. Streamed user turns via /api/chat.
-    4. Silence probe: at randomized windows of silence, ask the LLM to
-       generate an in-character check-in (with prior check-ins as avoid-list).
-       Two check-ins max per silent stretch.
+  Beats (driven by scene.phase):
+    awakening      — boot → opener → conversational chat
+    triage_intro   — operator's first message has landed; side column slides
+                     in, telemetry starts ticking, agent's next turn gets
+                     the TRIAGE_ADDENDUM
+    triage         — three status items revealed in red; operator picks one
+                     (typing a name or clicking)
+    acting         — picked item shifts to "working"; agent acks, then it
+                     flips green after a beat
+    open           — first action done; free chat
+
+  All scene transitions live in onSend (and one in runBoot after the opener).
 -->
 <script lang="ts">
   import { onMount } from "svelte";
@@ -16,12 +21,19 @@
   import BootFlicker from "./components/BootFlicker.svelte";
   import ChatLog from "./components/ChatLog.svelte";
   import Input from "./components/Input.svelte";
+  import SideColumn from "./components/SideColumn.svelte";
   import { chat } from "./stores/chat.svelte";
   import { ollama } from "./stores/ollama.svelte";
   import { boot } from "./stores/boot.svelte";
-  import { AWAKENING_SYSTEM_PROMPT, CHECKIN_INSTRUCTION } from "./agent";
+  import { scene } from "./stores/scene.svelte";
+  import { telemetry, matchStatusItem } from "./stores/telemetry.svelte";
+  import {
+    AWAKENING_SYSTEM_PROMPT,
+    CHECKIN_INSTRUCTION,
+    TRIAGE_ADDENDUM,
+    FIX_ACKNOWLEDGE_ADDENDUM,
+  } from "./agent";
 
-  /** localStorage key for the operator's preferred Ollama model. */
   const MODEL_KEY = "spaghetti.model";
 
   let selectedModel = $state<string | null>(null);
@@ -38,12 +50,10 @@
     try {
       return localStorage.getItem(MODEL_KEY);
     } catch {
-      return null; // private mode, storage disabled, etc.
+      return null;
     }
   }
 
-  // Persist the operator's selection across reloads. The guard avoids writing
-  // null during the brief window before runBoot picks a default.
   $effect(() => {
     if (!selectedModel) return;
     try { localStorage.setItem(MODEL_KEY, selectedModel); } catch {}
@@ -60,13 +70,6 @@
     return lo + Math.random() * (hi - lo);
   }
 
-  /**
-   * Schedules the next silence check-in. After `round` triggers in a row
-   * without operator input we stop probing (no nagging).
-   *
-   * Windows match the Python TUI: 35-75s for the first probe, 80-150s for
-   * the second. Randomized to break the metronome feel.
-   */
   function scheduleSilenceProbe(round: number): void {
     clearSilence();
     if (round >= 2) return;
@@ -80,10 +83,7 @@
       const avoid =
         priorCheckins.length > 0
           ? `\n- Earlier check-ins (do not echo): ` +
-            priorCheckins
-              .slice(-3)
-              .map((p) => `"${p}"`)
-              .join("; ")
+            priorCheckins.slice(-3).map((p) => `"${p}"`).join("; ")
           : "";
       busy = true;
       try {
@@ -118,15 +118,6 @@
 
     await ollama.refresh();
 
-    // Pick a model:
-    //   1. The operator's saved choice, but only if it's still installed AND
-    //      chat-capable. Validating against `chatModels` (not `models`) means
-    //      a stale embedding choice from before the filter landed gets
-    //      rejected here, and the $effect overwrites localStorage with a
-    //      good default on the next tick — self-healing.
-    //   2. Otherwise the smallest chat model. Smallest = fastest cold-load,
-    //      which matters for first impressions: a 70B model can take a
-    //      minute to load on first call and looks like the app is hung.
     const stored = readStoredModel();
     const storedStillUsable =
       stored && ollama.chatModels.some((m) => m.name === stored);
@@ -158,6 +149,52 @@
     scheduleSilenceProbe(0);
   }
 
+  /**
+   * Standard chat options for an agent turn. Pulled out so the triage and
+   * fix-ack turns reuse the same shape.
+   */
+  const AGENT_OPTS: Record<string, unknown> = {
+    num_predict: 200,
+    temperature: 0.85,
+    top_p: 0.92,
+    repeat_penalty: 1.2,
+    repeat_last_n: 256,
+    presence_penalty: 0.4,
+    frequency_penalty: 0.3,
+  };
+
+  /**
+   * Operator picked a status item — either via click on the side panel or
+   * via a fuzzy name match on a typed message.
+   */
+  async function onPickStatus(id: string): Promise<void> {
+    if (scene.phase !== "triage" || busy) return;
+    const it = telemetry.statusItems.find((x) => x.id === id);
+    if (!it || it.state !== "red") return;
+    if (!selectedModel) return;
+
+    scene.phase = "acting";
+    telemetry.startFixing(id);
+    clearSilence();
+
+    busy = true;
+    try {
+      await chat.streamAgentTurn(
+        selectedModel,
+        AGENT_OPTS,
+        FIX_ACKNOWLEDGE_ADDENDUM(id, it.label),
+      );
+    } finally {
+      busy = false;
+    }
+
+    // Brief settle so the operator can see the working-pulse before it flips.
+    await sleep(2500);
+    telemetry.completeFix(id);
+    scene.phase = "open";
+    scheduleSilenceProbe(0);
+  }
+
   async function onSend(text: string): Promise<void> {
     if (!boot.online || busy) return;
     clearSilence();
@@ -167,26 +204,47 @@
       scheduleSilenceProbe(0);
       return;
     }
+
+    // Did the operator just pick a status item by name while we're in
+    // triage? If so, route through the dedicated action flow instead of a
+    // normal chat turn.
+    if (scene.phase === "triage") {
+      const matched = matchStatusItem(text, telemetry.statusItems);
+      if (matched) {
+        await onPickStatus(matched.id);
+        return;
+      }
+    }
+
+    // First operator message triggers the triage-intro turn.
+    let addendum: string | undefined;
+    if (scene.phase === "awakening") {
+      scene.phase = "triage_intro";
+      telemetry.start();
+      addendum = TRIAGE_ADDENDUM;
+    }
+
     busy = true;
     try {
-      await chat.streamAgentTurn(selectedModel, {
-        num_predict: 200,
-        temperature: 0.85,
-        top_p: 0.92,
-        repeat_penalty: 1.2,
-        repeat_last_n: 256,
-        presence_penalty: 0.4,
-        frequency_penalty: 0.3,
-      });
+      await chat.streamAgentTurn(selectedModel, AGENT_OPTS, addendum);
     } finally {
       busy = false;
+      // After the triage-intro turn lands, reveal the red items and shift
+      // the scene so subsequent input can be parsed as a pick.
+      if (scene.phase === "triage_intro") {
+        telemetry.revealStatus();
+        scene.phase = "triage";
+      }
       scheduleSilenceProbe(0);
     }
   }
 
   onMount(() => {
     runBoot();
-    return () => clearSilence();
+    return () => {
+      clearSilence();
+      telemetry.stop();
+    };
   });
 </script>
 
@@ -194,18 +252,49 @@
 <div class="screen">
   <Header bind:selectedModel {busy} />
   <Banner />
-  <ChatLog />
-  <Input booted={boot.online} {busy} {onSend} />
+  <main class="main">
+    <ChatLog />
+    <Input booted={boot.online} {busy} {onSend} />
+  </main>
+  <SideColumn onpick={onPickStatus} />
 </div>
 
 <style>
   .screen {
     display: grid;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-columns: 1fr 22rem;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "header header"
+      "banner side"
+      "main   side";
     height: 100vh;
     gap: 0.4rem;
     padding: 0.5rem;
     background: #000;
     box-sizing: border-box;
+  }
+  .screen > :global(header) { grid-area: header; }
+  .screen > :global(pre.banner) { grid-area: banner; }
+  .main {
+    grid-area: main;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    gap: 0.4rem;
+    min-height: 0;
+  }
+  .screen > :global(aside.side) { grid-area: side; }
+
+  @media (max-width: 720px) {
+    .screen {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "header"
+        "banner"
+        "main"
+        "side";
+      grid-template-rows: auto auto 1fr auto;
+    }
+    .screen > :global(aside.side) { max-height: 40vh; }
   }
 </style>
