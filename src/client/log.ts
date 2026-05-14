@@ -28,6 +28,15 @@ export function sessionId(): string {
   return cachedSessionId;
 }
 
+/**
+ * Forget the cached session ID. Used by the soft-restart flow so the
+ * next logEvent() call generates a new ID — equivalent to what a
+ * real browser reload would do.
+ */
+export function resetSessionId(): void {
+  cachedSessionId = null;
+}
+
 export function logEvent(event: Record<string, unknown>): void {
   if (typeof fetch === "undefined") return;
   const sid = sessionId();

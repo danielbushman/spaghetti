@@ -39,7 +39,7 @@
     FIX_ACKNOWLEDGE_ADDENDUM,
     AUTO_PICK_ADDENDUM,
   } from "./agent";
-  import { logEvent, sessionId } from "./log";
+  import { logEvent, sessionId, resetSessionId } from "./log";
 
   const MODEL_KEY = "spaghetti.model";
 
@@ -68,6 +68,16 @@
 
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let priorCheckins: string[] = [];
+
+  /**
+   * Session counter for the soft-restart flow. runBoot captures the
+   * current value at start; subsequent restart() calls increment it,
+   * which makes the in-flight runBoot's captured value stale — the
+   * `aborted()` check at every await bails out gracefully. Without
+   * this, the old runBoot would keep advancing boot.phase /
+   * scene.phase after we reset them, racing the new runBoot.
+   */
+  let bootSession = 0;
 
   /**
    * Auto-pick timer. Started when scene enters triage; if the operator
@@ -175,6 +185,9 @@
   }
 
   async function runBoot(): Promise<void> {
+    const mySession = ++bootSession;
+    const aborted = () => mySession !== bootSession;
+
     // First event seals the session ID into the on-disk filename and
     // gives the analyst something to grep for.
     logEvent({
@@ -185,8 +198,10 @@
     });
 
     chat.setSystemPrompt(AWAKENING_SYSTEM_PROMPT);
+    if (aborted()) return;
     boot.phase = "cold";
     await speedSleep(600);
+    if (aborted()) return;
 
     // Boot text uses the internal codename ('ghetti'); the user-facing
     // docs are the only place 'Ollama' is named.
@@ -199,10 +214,13 @@
     ];
     for (const [line, pause] of lines) {
       await chat.typeSystem(line);
+      if (aborted()) return;
       if (pause) await speedSleep(pause);
+      if (aborted()) return;
     }
 
     await ollama.refresh();
+    if (aborted()) return;
 
     const stored = readStoredModel();
     const storedStillUsable =
@@ -226,7 +244,9 @@
     } else {
       await chat.typeSystem("// ghetti ............... ok");
     }
+    if (aborted()) return;
     await speedSleep(600);
+    if (aborted()) return;
 
     boot.phase = "online";
     logEvent({
@@ -237,11 +257,13 @@
     // Start the agent's "anxiety" — never sit idle after this point.
     work.start();
     await speedSleep(500);
+    if (aborted()) return;
 
     // Buddy-after-an-accident phrasing — subtly hints that the heart
     // of the game is about being alive. Same opener spot, different
     // tone than the old "Are you still there?".
     await chat.typeAgent("Are you alive?");
+    if (aborted()) return;
     scheduleSilenceProbe(0);
   }
 
@@ -453,10 +475,61 @@
     gateState = "goodbye";
   }
 
+  /**
+   * Soft restart. Equivalent to reloading the browser except fullscreen
+   * state is preserved (a real reload exits fullscreen).
+   *
+   * - Logs a session_restart marker so analysis can see the boundary.
+   * - Resets the session ID so the next logEvent opens a fresh JSONL
+   *   file on the server (parity with what a real reload does).
+   * - Bumps bootSession to abort any in-flight runBoot.
+   * - Clears local timers + state.
+   * - Resets all game-state stores back to their initial values.
+   * - Bounces the gate back to "warning" — same flow a real reload
+   *   would land on. Operator presses any key to continue into a
+   *   freshly-booted game.
+   *
+   * User preferences (selectedModel via localStorage, speed.multiplier,
+   * font.current) are untouched — same as how localStorage survives a
+   * real reload.
+   */
+  function restart(): void {
+    logEvent({ type: "session_restart" });
+    resetSessionId();
+    bootSession++; // invalidates the in-flight runBoot, if any
+    clearSilence();
+    clearAutoPick();
+    busy = false;
+    pendingTexts = [];
+    priorCheckins = [];
+    boot.reset();
+    scene.reset();
+    chat.reset();
+    telemetry.reset();
+    work.reset();
+    effects.reset();
+    gateState = "warning";
+  }
+
   onMount(() => {
     // No runBoot() here — that fires only when the warning is dismissed
     // via onWarningContinue. Cleanup still runs on unmount regardless.
+
+    // F2 = global soft-restart shortcut. Works in any state (warning,
+    // game, goodbye). Doesn't conflict with browser shortcuts; F-keys
+    // are rarely used by the browser itself other than F11/F12. The
+    // game's text inputs don't intercept F2, so it works while the
+    // operator is typing too.
+    function onGlobalKeyDown(e: KeyboardEvent): void {
+      if (e.key === "F2") {
+        e.preventDefault();
+        restart();
+      }
+    }
+    window.addEventListener("keydown", onGlobalKeyDown);
+
     return () => {
+      window.removeEventListener("keydown", onGlobalKeyDown);
       clearSilence();
       clearAutoPick();
       telemetry.stop();
@@ -482,7 +555,7 @@
   -->
   <div class="status-flash" class:active={effects.flashing}></div>
   <div class="screen">
-    <Header bind:selectedModel {busy} />
+    <Header bind:selectedModel {busy} onrestart={restart} />
     <main class="main">
       <ChatLog />
       <Input booted={boot.online} {busy} {onSend} />

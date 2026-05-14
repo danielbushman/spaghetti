@@ -69,6 +69,11 @@ class WorkStore {
     this.timer = null;
   }
 
+  /** Full reset for the soft-restart flow. Equivalent to stop here. */
+  reset(): void {
+    this.stop();
+  }
+
   private cycle(): void {
     if (this.timer) clearTimeout(this.timer);
     // Pick a different tool than the current one if possible.

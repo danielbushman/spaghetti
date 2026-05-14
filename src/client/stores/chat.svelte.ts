@@ -122,6 +122,17 @@ class ChatStore {
     this.history = [{ role: "system", content: p }];
   }
 
+  /**
+   * Wipe all chat state. Used by the soft-restart flow. Any in-flight
+   * stream continues to write to its (now orphaned) Message instance
+   * but those instances are no longer in `this.messages`, so they
+   * don't render.
+   */
+  reset(): void {
+    this.messages = [];
+    this.history = [];
+  }
+
   /** User message lands instantly — no typewriter for what they themselves wrote. */
   pushUserInstant(text: string): void {
     this.messages.push(

@@ -70,6 +70,11 @@ class EffectsStore {
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
   }
+
+  /** Full reset for the soft-restart flow. Equivalent to stop here. */
+  reset(): void {
+    this.stop();
+  }
 }
 
 export const effects = new EffectsStore();

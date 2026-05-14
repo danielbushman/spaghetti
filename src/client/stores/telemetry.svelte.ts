@@ -38,16 +38,26 @@ export type StatusItem = {
 const HISTORY_LEN = 32;
 const TICK_MS = 600;
 
+/**
+ * Initial signal definitions. Frozen so the runtime can't mutate the
+ * template — and so `reset()` can deep-clone it back into the store.
+ */
+const INITIAL_SIGNALS: readonly Signal[] = [
+  // Runway is a money signal — always burning down, faster when any
+  // incident is live or being worked on. Visually distinct from the
+  // other gauges (different colour in SignalRow).
+  { id: "runway", label: "runway",   unit: "mo", history: [], current: 6, min: 0, max: 8 },
+  { id: "cpu",    label: "cpu",      unit: "%",  history: [], current: 0, min: 0, max: 100 },
+  { id: "errors", label: "errors/s", unit: "",   history: [], current: 0, min: 0, max: 50 },
+  { id: "queue",  label: "q-depth",  unit: "",   history: [], current: 0, min: 0, max: 200 },
+];
+
+function freshSignals(): Signal[] {
+  return INITIAL_SIGNALS.map((s) => ({ ...s, history: [] }));
+}
+
 class TelemetryStore {
-  signals = $state<Signal[]>([
-    // Runway is a money signal — always burning down, faster when any
-    // incident is live or being worked on. Visually distinct from the
-    // other gauges (different colour in SignalRow).
-    { id: "runway", label: "runway",   unit: "mo", history: [], current: 6, min: 0, max: 8 },
-    { id: "cpu",    label: "cpu",      unit: "%",  history: [], current: 0, min: 0, max: 100 },
-    { id: "errors", label: "errors/s", unit: "",   history: [], current: 0, min: 0, max: 50 },
-    { id: "queue",  label: "q-depth",  unit: "",   history: [], current: 0, min: 0, max: 200 },
-  ]);
+  signals = $state<Signal[]>(freshSignals());
   statusItems = $state<StatusItem[]>([]);
 
   private tickHandle: ReturnType<typeof setInterval> | null = null;
@@ -127,6 +137,18 @@ class TelemetryStore {
       clearInterval(this.tickHandle);
       this.tickHandle = null;
     }
+  }
+
+  /**
+   * Full reset for the soft-restart flow. Stops ticking, clears
+   * statuses, restores signals to their initial empty state. After
+   * this call the store looks exactly as it did at module load.
+   */
+  reset(): void {
+    this.stop();
+    this.signals = freshSignals();
+    this.statusItems = [];
+    this.revealed = false;
   }
 
   private tick(): void {

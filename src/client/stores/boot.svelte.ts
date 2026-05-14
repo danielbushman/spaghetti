@@ -10,6 +10,11 @@ class BootStore {
   get online(): boolean {
     return this.phase === "online";
   }
+
+  /** Return to pre-boot state. Used by the soft-restart flow. */
+  reset(): void {
+    this.phase = "idle";
+  }
 }
 
 export const boot = new BootStore();

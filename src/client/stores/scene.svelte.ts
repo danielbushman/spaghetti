@@ -28,6 +28,11 @@ class SceneStore {
   get sideColumnVisible(): boolean {
     return this.phase !== "awakening";
   }
+
+  /** Return to awakening. Used by the soft-restart flow. */
+  reset(): void {
+    this.phase = "awakening";
+  }
 }
 
 export const scene = new SceneStore();

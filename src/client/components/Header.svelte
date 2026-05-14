@@ -5,15 +5,18 @@
   import SpeedSlider from "./SpeedSlider.svelte";
   import FontSelect from "./FontSelect.svelte";
   import FullscreenToggle from "./FullscreenToggle.svelte";
+  import RestartButton from "./RestartButton.svelte";
   import { boot } from "../stores/boot.svelte";
   import { work } from "../stores/work.svelte";
 
   let {
     selectedModel = $bindable<string | null>(null),
     busy = false,
+    onrestart,
   }: {
     selectedModel: string | null;
     busy: boolean;
+    onrestart: () => void;
   } = $props();
 
   // After boot, the indicator is always alive — never quiet. Label flips
@@ -37,14 +40,15 @@
   <FontSelect />
   <SpeedSlider />
   <FullscreenToggle />
+  <RestartButton {onrestart} />
   <ModelSelect bind:value={selectedModel} />
 </header>
 
 <style>
   header {
     display: grid;
-    /* light  title  status   font   speed   fullscreen   model */
-    grid-template-columns: 1.5em auto 1fr 9rem 10rem auto 15rem;
+    /* light  title  status   font   speed   fs   restart   model */
+    grid-template-columns: 1.5em auto 1fr 9rem 10rem auto auto 15rem;
     align-items: center;
     gap: 0.75rem;
     padding: 0.4rem 0.6rem;

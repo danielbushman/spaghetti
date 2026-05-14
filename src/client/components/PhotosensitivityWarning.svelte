@@ -12,6 +12,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
+  import FullscreenToggle from "./FullscreenToggle.svelte";
 
   let {
     onContinue,
@@ -34,6 +35,14 @@
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   });
+
+  // Stop click on the fullscreen control from bubbling up to the
+  // warning container's onclick (which would dismiss to "game").
+  // The operator should be able to toggle fullscreen and *stay* on
+  // the warning until they explicitly choose to continue.
+  function stopBubble(e: Event): void {
+    e.stopPropagation();
+  }
 </script>
 
 <div
@@ -45,6 +54,14 @@
   aria-labelledby="ps-warn-title"
   tabindex="-1"
 >
+  <!-- Fullscreen toggle available before the game starts. Wrapper
+       stops the click from bubbling up to the warning's onclick
+       so the operator can enter fullscreen and then continue
+       deliberately on their own key press. -->
+  <div class="controls" onclick={stopBubble} role="presentation">
+    <FullscreenToggle />
+  </div>
+
   <div class="content">
     <div class="icon" aria-hidden="true">⚠</div>
     <h1 id="ps-warn-title">photosensitivity warning</h1>
@@ -71,6 +88,12 @@
     z-index: 1000;
     padding: 2rem;
     cursor: pointer;
+  }
+  .controls {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    cursor: default;
   }
   .content {
     max-width: 38rem;
