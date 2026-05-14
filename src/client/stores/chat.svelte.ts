@@ -20,7 +20,7 @@
  *   where `message.typing = false` looked correct in state but the cursor
  *   stayed in the DOM forever.
  */
-import { charDelayMs } from "../motion/typing";
+import { adaptiveCharDelayMs, charDelayMs } from "../motion/typing";
 
 export type Role = "system" | "user" | "agent";
 
@@ -267,12 +267,16 @@ class ChatStore {
       }
     };
 
+    // Display: drain target → visible at typewriter cadence, but accelerate
+    // when the producer (Ollama) runs ahead. Keeps the rhythm on slow models,
+    // avoids a perceptible lag on fast ones.
     const display = async (): Promise<void> => {
       while (true) {
         if (m.visible.length < m.target.length) {
           const ch = m.target[m.visible.length];
           m.visible = m.target.slice(0, m.visible.length + 1);
-          await sleep(charDelayMs(ch));
+          const backlog = m.target.length - m.visible.length;
+          await sleep(adaptiveCharDelayMs(ch, backlog));
         } else if (receiveDone) {
           return;
         } else {

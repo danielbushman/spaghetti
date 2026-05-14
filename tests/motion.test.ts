@@ -23,6 +23,7 @@ import {
   cubicBezier,
   catmullRom,
 } from "../src/client/motion/arcs";
+import { adaptiveCharDelayMs, charDelayMs } from "../src/client/motion/typing";
 
 describe("easings", () => {
   test("all return 0 at t=0 and 1 at t=1", () => {
@@ -132,6 +133,50 @@ describe("cubicBezier", () => {
     const c = cubicBezier([0, 0], [3, 10], [7, 10], [10, 0]);
     expect(c(0)).toEqual([0, 0]);
     expect(c(1)).toEqual([10, 0]);
+  });
+});
+
+describe("typewriter cadence", () => {
+  test("base delay is within documented bands", () => {
+    // Sample many values to average out the randomness floor.
+    const buckets = (ch: string, n = 400) => {
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = 0; i < n; i++) {
+        const d = charDelayMs(ch);
+        if (d < min) min = d;
+        if (d > max) max = d;
+      }
+      return { min, max };
+    };
+    // Letters: 7..17 base, plus rare hitch up to 90. Floor must stay tight.
+    const letter = buckets("a", 800);
+    expect(letter.min).toBeGreaterThanOrEqual(7);
+    expect(letter.min).toBeLessThanOrEqual(20);
+    // Sentence terminators are clearly slower than letters.
+    const sentence = buckets(".");
+    expect(sentence.min).toBeGreaterThanOrEqual(130);
+    expect(sentence.max).toBeLessThanOrEqual(225);
+  });
+
+  test("adaptive delay is non-increasing as backlog grows", () => {
+    // Compare expected values (random pieces shared across both sides).
+    const ch = "a";
+    // Run many samples per backlog and average; the scaling factor should
+    // still dominate the noise.
+    const avg = (backlog: number, n = 300) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += adaptiveCharDelayMs(ch, backlog);
+      return s / n;
+    };
+    const a = avg(0);
+    const b = avg(5);
+    const c = avg(15);
+    const d = avg(50);
+    expect(b).toBeLessThan(a);
+    expect(c).toBeLessThan(b);
+    expect(d).toBeLessThan(c);
+    expect(d).toBeLessThanOrEqual(3 + 1e-9);
   });
 });
 
