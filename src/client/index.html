@@ -14,7 +14,14 @@
         overflow: hidden;
       }
       #app { height: 100%; }
-      /* CRT-ish glow on text — subtle, not nostalgic-overload. */
+      /*
+        CRT-ish scanlines — subtle, no blend mode. mix-blend-mode: multiply
+        forces a full-screen compositing pass that gets expensive as the
+        DOM grows (each text span counts toward the composite), and it
+        showed up as message-typing slowdown after a few turns. Plain
+        opacity on a transparent-banded gradient gives the same effect at
+        a fraction of the cost.
+      */
       body::after {
         content: '';
         position: fixed; inset: 0;
@@ -23,9 +30,8 @@
           to bottom,
           rgba(0,0,0,0) 0,
           rgba(0,0,0,0) 2px,
-          rgba(0,0,0,0.08) 3px
+          rgba(0,0,0,0.10) 3px
         );
-        mix-blend-mode: multiply;
       }
     </style>
   </head>

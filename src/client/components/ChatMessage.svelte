@@ -59,18 +59,23 @@
 </script>
 
 <!--
-  Each character lives in its own <span> so a CSS animation can fire when it
-  mounts — giving the leading edge of typed text a soft "materialize" rather
-  than a hard pop. The compound key (`${i}-${ch}`) ensures spans only mount
-  on first arrival of a position; mutating a character at an existing index
-  (e.g. the system→error transformation) updates content without re-firing
-  the animation, but if the whole message swaps roles we'd want a remount —
-  in practice the error path also rewrites the index sequence, so keys
-  change and animations replay cleanly.
+  Two render modes, switched by `message.typing`:
+
+  • Typing: each character is its own <span> so the CSS char-in animation
+    can fire on mount, giving the leading edge a phosphor-bright
+    materialize. Compound key (`${i}-${ch}`) means spans only mount on
+    first arrival; mutating a char at an existing index doesn't re-fire.
+
+  • Done: collapse to a single text node. Eliminates the per-message
+    each-loop reconcile cost — important because the cursor blink causes
+    this component to re-render every 500ms while typing, and old
+    completed messages would otherwise carry hundreds of spans
+    indefinitely (the actual cause of "typing slows down as lines
+    accumulate").
 -->
 <div class="msg msg-{message.role}" bind:this={el} style="opacity: 0;"
   ><span class="prefix">{prefix}</span><span class="text"
-  >{#each [...message.visible] as ch, i (`${i}-${ch}`)}<span class="char">{ch}</span>{/each}</span
+  >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}<span class="char">{ch}</span>{/each}{:else}{message.visible}{/if}</span
   >{#if message.typing}<span class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
 
 <style>
@@ -87,17 +92,22 @@
   .msg-agent .prefix { color: #33ff66; font-weight: bold; }
   .msg-agent .text   { color: #33ff66; }
   /*
-    Per-character materialize. Opacity-only so the animation works on inline
-    elements (transforms don't apply to non-block boxes) and so word wrapping
-    is unaffected — the chars stay in normal inline flow. The expo-out curve
-    snaps the char to visible quickly, then settles.
+    Per-character phosphor materialize. Two-layer text-shadow ramps from
+    blurred-bright (as if the pixel just lit) to a clean letter, on top of
+    the opacity fade. Works on inline elements (no transforms / filters
+    needed), so word-wrap is unchanged.
+
+    Cost stays small in practice because the typing/done split above means
+    only the actively-typing message has live .char elements; completed
+    messages are static text nodes.
   */
   .char {
-    animation: char-in 90ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: char-in 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   @keyframes char-in {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    0%   { opacity: 0; text-shadow: 0 0 3px currentColor, 0 0 6px currentColor; }
+    55%  { opacity: 1; text-shadow: 0 0 2px currentColor; }
+    100% { opacity: 1; text-shadow: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     .char { animation: none; }

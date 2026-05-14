@@ -11,12 +11,12 @@
  * fast enough to read as fluency rather than as deliberation.
  */
 export function charDelayMs(ch: string): number {
-  if (".!?".includes(ch))   return 140 + Math.random() * 90;
-  if (",;:".includes(ch))   return 50  + Math.random() * 50;
-  if (ch === "\n")           return 80  + Math.random() * 70;
-  if (ch === " ")            return 8   + Math.random() * 16;
-  if (Math.random() < 0.015) return 35  + Math.random() * 50; // rare hitch
-  return 8 + Math.random() * 12;
+  if (".!?".includes(ch))   return 160 + Math.random() * 100;
+  if (",;:".includes(ch))   return 60  + Math.random() * 55;
+  if (ch === "\n")           return 90  + Math.random() * 70;
+  if (ch === " ")            return 10  + Math.random() * 18;
+  if (Math.random() < 0.015) return 40  + Math.random() * 55; // rare hitch
+  return 10 + Math.random() * 12;
 }
 
 /**

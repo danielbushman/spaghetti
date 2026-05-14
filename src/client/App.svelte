@@ -13,6 +13,7 @@
   import { onMount } from "svelte";
   import Header from "./components/Header.svelte";
   import Banner from "./components/Banner.svelte";
+  import BootFlicker from "./components/BootFlicker.svelte";
   import ChatLog from "./components/ChatLog.svelte";
   import Input from "./components/Input.svelte";
   import { chat } from "./stores/chat.svelte";
@@ -189,6 +190,7 @@
   });
 </script>
 
+<BootFlicker />
 <div class="screen">
   <Header bind:selectedModel {busy} />
   <Banner />
