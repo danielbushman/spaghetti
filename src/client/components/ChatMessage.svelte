@@ -103,11 +103,13 @@
     };
   });
 
-  // Agent has a visible name; user messages have no prefix — they're
-  // distinguished by an indent that aligns their text with where the
-  // agent's text starts, plus a lighter color.
+  // Agent has a visible name badge; user messages have no prefix —
+  // they're distinguished by an indent that aligns their text with
+  // where the agent's text starts, plus a lighter color. The trailing
+  // space is gone because CSS margin-right on the badge handles the
+  // spacing now.
   let prefix = $derived(
-    message.role === "agent" ? "meatball> " : ""
+    message.role === "agent" ? "meatball>" : ""
   );
 
   /**
@@ -166,22 +168,47 @@
   }
   /*
     User messages have no prefix. They're indented so their text starts
-    at the same column where the agent's text starts (10ch = the width
-    of "meatball> " in the monospace font). Reads as a script/transcript
-    alignment. Lighter mint color (vs agent's saturated green) is the
-    second cue distinguishing speaker.
+    near the same column where the agent's text starts (~11ch covers
+    'meatball>' 9-char text + the badge's 0.5em+0.5em padding + a
+    little margin-right slack). Reads as a script/transcript alignment.
+    Lighter mint colour (vs agent's saturated green) is the second cue
+    distinguishing speaker.
 
-    A bit more vertical breathing room than agent messages so each
-    operator turn sits as its own beat in the conversation.
+    Extra vertical breathing room around each user turn so it sits as
+    its own beat in the conversation.
   */
   .msg.msg-user {
-    margin: 1.2rem 0.3rem 0.9rem 10ch;
+    margin: 1.2rem 0.3rem 0.9rem 11ch;
     color: #cceedd;
   }
   .msg-user .text { color: inherit; }
 
-  .msg-agent .prefix { color: #33ff66; font-weight: bold; }
-  .msg-agent .text   { color: #33ff66; }
+  /*
+    Meatball's name-badge. CLI-aesthetic inverted block (reverse-video,
+    the way a shell prompt or selection highlight reads in a terminal):
+    bright-green background, dark-green text, tight padding, soft
+    phosphor glow. The '>' stays inside the badge so it reads as a
+    self-contained shell prompt indicator.
+
+    line-height is locked to the body's 1.3 so the inline-block
+    doesn't push the line taller than its neighbours.
+  */
+  .msg-agent .prefix {
+    display: inline-block;
+    background: #33ff66;
+    color: #00280f;
+    padding: 0.05em 0.5em;
+    margin-right: 0.45em;
+    font-weight: bold;
+    letter-spacing: 0.04em;
+    border-radius: 1px;
+    box-shadow:
+      0 0 6px rgba(51, 255, 102, 0.55),
+      inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+    line-height: 1.3;
+    vertical-align: baseline;
+  }
+  .msg-agent .text { color: #33ff66; }
   /*
     Per-character phosphor materialize. Two-layer text-shadow ramps from
     blurred-bright (as if the pixel just lit) to a clean letter, on top of
