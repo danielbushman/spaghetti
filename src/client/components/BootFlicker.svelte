@@ -113,13 +113,19 @@
 <div class="flicker" style="animation-duration: {totalMs}ms"></div>
 <div class="electric" style="animation-duration: {totalMs}ms"></div>
 <!--
-  Afterimage. The word "spaghetti" punches in full-screen at the moment
-  of THE STRIKE (73% of the timeline), held bright through the electric
-  afterglow, then shifts colour from white-mint toward terminal green
-  as it diffuses and fades by 100%. Like the burn-in your eye holds
-  after a flash bulb.
+  Afterimage. The word "spaghetti" punches in at the moment of THE
+  STRIKE (73%), held bright through the electric afterglow, then fades
+  by 100%. Position is in the upper third (roughly golden-ratio) and
+  the letters are scaleY'd ~3.5× from their tops so they elongate
+  downward like long pasta strands.
+
+  Two-element structure: the outer div owns positioning + opacity
+  animation; the inner span owns the text + static transform. Keeps
+  the layout math separate from the visual stretch.
 -->
-<div class="afterimage" style="animation-duration: {totalMs}ms" aria-hidden="true">spaghetti</div>
+<div class="afterimage" style="animation-duration: {totalMs}ms" aria-hidden="true">
+  <span class="stretched">spaghetti</span>
+</div>
 
 <style>
   .flicker {
@@ -276,40 +282,49 @@
     loses intensity, the way burn-in does.
   */
   /*
-    The afterimage is stretched vertically — scaleY(2.6) makes the
-    letters tall and noodle-like, matching the name. Locking the
-    transform at a single value (no animating it) avoids the hiccupy
-    feel that came from too many properties interpolating in parallel.
+    Two-layer structure:
 
-    Only opacity is animated. Colour and text-shadow are FIXED at
-    keyframes so the values that survive are step-changes, not
-    continuous interpolation. Sharper, more like the spark/flare
-    bursts, less like a wobbling cross-fade.
+    .afterimage  flex container that pins the text in the upper third
+                 of the viewport. Owns the opacity animation; nothing
+                 else moves.
 
-    The font is letter-spaced wider too, so each stretched letter has
-    room to read individually.
+    .stretched   the actual text, scaleY-stretched ~3.5× from its TOP
+                 edge so it hangs downward like pasta. The transform
+                 is static — only opacity animates. This is what
+                 makes the motion read as a sharp flash rather than
+                 a wobbling cross-fade (multiple animating properties
+                 was the original "hiccupy" problem).
+
+    Position: padding-top 16vh puts the text's top edge at ~1/6 down
+    from the top, with scaleY extending it down through the upper-
+    middle region. Visual centre ends up around the golden-ratio line
+    rather than dead-centre. Looks more like a composed image.
   */
   .afterimage {
     position: fixed;
     inset: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    padding-top: 16vh;
     pointer-events: none;
     z-index: 55;
+    opacity: 0;
+    user-select: none;
+    animation: spaghetti-afterimage 13000ms forwards;
+    will-change: opacity;
+  }
+  .afterimage .stretched {
+    display: inline-block;
     font-family: inherit;
     font-size: clamp(3.5rem, 12vw, 14rem);
     font-weight: bold;
     letter-spacing: 0.18em;
     color: #c8ffd8;
     text-shadow: 0 0 24px rgba(136, 230, 200, 0.6);
-    transform: scaleY(2.6);
-    transform-origin: center center;
-    opacity: 0;
-    user-select: none;
+    transform: scaleY(3.5);
+    transform-origin: top center;
     white-space: nowrap;
-    animation: spaghetti-afterimage 13000ms forwards;
-    will-change: opacity;
   }
 
   /*
