@@ -128,16 +128,18 @@
     accumulate").
 -->
 <!--
-  In both render modes, '?' chars get the .question class so they wobble +
-  glimmer. In typing mode the each-loop already produces one span per
-  char; we just toggle .question on the relevant ones. In done mode we
-  split the text on '?' so only the question marks become spans — the
-  rest stays as plain text nodes (the whole reason for the typing/done
-  split: no per-char DOM tax on completed messages).
+  Question marks are wrapped in a nested span: the outer carries the
+  wobble + glimmer, the inner carries the rubber-band snap. Two CSS
+  animations on the same property would compete (last-defined wins),
+  so splitting onto two elements lets their transforms compose via the
+  DOM parent-child relationship.
+
+  In both render modes, regular characters use the simpler single
+  span. The '?' branches do the wrapping.
 -->
 <div class="msg msg-{message.role}" bind:this={el} style="opacity: 0;"
   ><span class="prefix">{prefix}</span><span class="text"
-  >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}<span class="char" class:question={ch === "?"} style:--i={ch === "?" ? i : null}>{ch}</span>{/each}{:else}{#each doneParts as part, i (i)}{#if part === "?"}<span class="question" style:--i={i}>?</span>{:else}{part}{/if}{/each}{/if}</span
+  >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}{#if ch === "?"}<span class="char question" style:--i={i}><span class="snap">{ch}</span></span>{:else}<span class="char">{ch}</span>{/if}{/each}{:else}{#each doneParts as part, i (i)}{#if part === "?"}<span class="question" style:--i={i}><span class="snap">?</span></span>{:else}{part}{/if}{/each}{/if}</span
   >{#if isWaitingForFirstToken}<ThinkingIndicator active={true} />{:else if message.typing}<span bind:this={cursorEl} class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
 
 <style>
@@ -249,9 +251,58 @@
     }
   }
 
+  /*
+    Rubber-band snap. Inner span owns this so it composes on top of
+    the outer wobble/glimmer (two animations on the same property
+    would otherwise compete — last-defined wins).
+
+    transform-origin: bottom center → the character stretches *upward*
+    from its baseline (as if pulled by its top), snaps back through
+    baseline, then oscillates to rest.
+
+    4-second cycle period. ~12% of the cycle is the actual snap event;
+    the rest holds at identity. Per-instance offset via --i × 311ms
+    (non-harmonic with the outer's 127ms and 89ms offsets) so multiple
+    question marks never snap simultaneously.
+  */
+  .question .snap,
+  .char.question .snap {
+    display: inline-block;
+    transform-origin: bottom center;
+    animation: question-snap 4s infinite;
+    animation-delay: calc(var(--i, 0) * -311ms);
+    will-change: transform;
+  }
+
+  @keyframes question-snap {
+    /* Long rest, ease-in-cubic for the tension buildup. */
+    0%, 87.5% {
+      transform: scaleY(1);
+      animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+    }
+    /* Pull complete at peak. step-end holds 1.85× until the snap. */
+    92% {
+      transform: scaleY(1.85);
+      animation-timing-function: step-end;
+    }
+    /* THE SNAP — value jumps from 1.85 to 0.55 at this boundary. */
+    94% {
+      transform: scaleY(0.55);
+      animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    /* Damped oscillation back to identity. */
+    95%  { transform: scaleY(1.25); animation-timing-function: ease-in-out; }
+    96%  { transform: scaleY(0.85); animation-timing-function: ease-in-out; }
+    97%  { transform: scaleY(1.08); animation-timing-function: ease-in-out; }
+    98%  { transform: scaleY(0.96); animation-timing-function: ease-in-out; }
+    99%  { transform: scaleY(1.02); animation-timing-function: ease-out; }
+    100% { transform: scaleY(1); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .char { animation: none; }
-    .question, .char.question {
+    .question, .char.question,
+    .question .snap, .char.question .snap {
       animation: none !important;
       transform: none !important;
       color: #aaffaa;
