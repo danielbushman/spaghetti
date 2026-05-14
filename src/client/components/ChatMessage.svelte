@@ -113,18 +113,52 @@
   );
 
   /**
-   * Split the visible text on '?' so we can wrap just the question marks
-   * in spans during done-mode (the rest stays as plain text nodes — no
-   * per-char overhead). Returns an array of segments where any element
-   * equal to "?" is a question mark to highlight, otherwise plain text.
+   * Split the visible text into typed segments for done-mode rendering.
+   * Three segment types — plain text, '?' marks, and money tokens
+   * (standalone '$' or '$' followed by a number with optional commas,
+   * decimal, and K/M/B suffix). Money tokens get a burst-and-settle
+   * animation when they mount; question marks get the wobble + snap.
    *
-   *   "Are you ok? Hello?" → ["Are you ok", "?", " Hello", "?"]
+   *   "Are you ok? It's $42,000?"
+   *     → [
+   *       {type:"text",     value:"Are you ok"},
+   *       {type:"question", value:"?"},
+   *       {type:"text",     value:" It's "},
+   *       {type:"money",    value:"$42,000"},
+   *       {type:"question", value:"?"},
+   *     ]
+   *
+   * The regex's first alternative is the question mark, second is the
+   * money-with-number form ('$' + at least one digit + optional commas,
+   * optional '.NN' decimal, optional KMB suffix). The third alternative
+   * is a standalone '$' — '$' NOT followed by a word char (rules out
+   * things like '$tring' that look money-ish but aren't).
    */
-  function splitForQuestionMarks(s: string): string[] {
-    return s.split(/(\?)/).filter((p) => p.length > 0);
+  type Highlight = { type: "text" | "question" | "money"; value: string };
+
+  function splitForHighlights(text: string): Highlight[] {
+    const re = /(\?|\$\d[\d,]*(?:\.\d+)?[KMBkmb]?|\$(?![\w]))/g;
+    const parts: Highlight[] = [];
+    let lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > lastIndex) {
+        parts.push({ type: "text", value: text.slice(lastIndex, m.index) });
+      }
+      const matched = m[0];
+      parts.push({
+        type: matched === "?" ? "question" : "money",
+        value: matched,
+      });
+      lastIndex = re.lastIndex;
+    }
+    if (lastIndex < text.length) {
+      parts.push({ type: "text", value: text.slice(lastIndex) });
+    }
+    return parts;
   }
 
-  const doneParts = $derived(splitForQuestionMarks(message.visible));
+  const doneParts = $derived(splitForHighlights(message.visible));
 </script>
 
 <!--
@@ -154,7 +188,7 @@
 -->
 <div class="msg msg-{message.role}" bind:this={el} style="opacity: 0;"
   >{#if prefix}<span class="prefix">{prefix}</span>{/if}<span class="text"
-  >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}{#if ch === "?"}<span class="char question" style:--i={i}><span class="snap">{ch}</span></span>{:else}<span class="char">{ch}</span>{/if}{/each}{:else}{#each doneParts as part, i (i)}{#if part === "?"}<span class="question" style:--i={i}><span class="snap">?</span></span>{:else}{part}{/if}{/each}{/if}</span
+  >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}{#if ch === "?"}<span class="char question" style:--i={i}><span class="snap">{ch}</span></span>{:else}<span class="char">{ch}</span>{/if}{/each}{:else}{#each doneParts as part, i (i)}{#if part.type === "question"}<span class="question" style:--i={i}><span class="snap">?</span></span>{:else if part.type === "money"}<span class="money">{part.value}</span>{:else}{part.value}{/if}{/each}{/if}</span
   >{#if isWaitingForFirstToken}<ThinkingIndicator active={true} />{:else if message.typing}<span bind:this={cursorEl} class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
 
 <style>
@@ -353,6 +387,65 @@
     100% { transform: scaleY(1); }
   }
 
+  /*
+    Money tokens — '$' alone or '$' followed by a number. Burst-and-
+    settle when they mount: dramatic white-yellow flash with a halo at
+    1.55× scale, decays to a slightly stylised lime-yellow-green at
+    normal size over 700ms with an expo-out timing function, then holds
+    forever via animation-fill-mode: forwards.
+
+    Like a 'big bucks' game show prize reveal — fast flash, long
+    settled state. The flash fires once at mount, which (because the
+    span is only created when typing finishes) coincides with the
+    moment the value 'lands' on screen.
+  */
+  .money {
+    display: inline-block;
+    font-weight: bold;
+    color: #ddff44;
+    text-shadow: 0 0 5px rgba(204, 255, 100, 0.55);
+    animation: money-burst 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    will-change: transform, color, text-shadow;
+  }
+
+  @keyframes money-burst {
+    /* Mount: big bright flash. Scaled up, white-hot centre, wide
+       yellow halo. The whole thing pops at once. */
+    0% {
+      transform: scale(1.55);
+      color: #ffffff;
+      text-shadow:
+        0 0 22px rgba(255, 240, 100, 1),
+        0 0 44px rgba(220, 255, 80, 0.7),
+        0 0 80px rgba(180, 255, 60, 0.3);
+      letter-spacing: 0.06em;
+    }
+    /* Quick settle — still oversized, warm yellow. */
+    20% {
+      transform: scale(1.20);
+      color: #ffff80;
+      text-shadow:
+        0 0 14px rgba(220, 255, 80, 0.85),
+        0 0 28px rgba(200, 255, 70, 0.4);
+      letter-spacing: 0.03em;
+    }
+    /* Drifting toward the resting tone. */
+    50% {
+      transform: scale(1.06);
+      color: #eaff60;
+      text-shadow: 0 0 9px rgba(220, 255, 80, 0.6);
+      letter-spacing: 0.015em;
+    }
+    /* Settled — lime-yellow-green money tone with mild glow. Holds
+       at this state for the rest of the message's life on screen. */
+    100% {
+      transform: scale(1);
+      color: #ddff44;
+      text-shadow: 0 0 5px rgba(204, 255, 100, 0.55);
+      letter-spacing: 0;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .char { animation: none; }
     .question, .char.question,
@@ -361,6 +454,10 @@
       transform: none !important;
       color: #aaffaa;
       text-shadow: 0 0 4px rgba(170, 255, 170, 0.5);
+    }
+    .money {
+      animation: none !important;
+      transform: none !important;
     }
   }
   .cursor {
