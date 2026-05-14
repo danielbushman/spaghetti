@@ -14,6 +14,8 @@
  * orchestration lands, the same shape can be fed by it.
  */
 
+import { speed } from "./speed.svelte";
+
 export type Signal = {
   id: string;
   label: string;
@@ -137,9 +139,14 @@ class TelemetryStore {
         //
         // Base 0.001/tick × 600ms = 0.00167/sec → ~10 min per simulated
         // month of runway. Stress adds 0.005/tick → ~2 min/month.
+        //
+        // Scaled by 1/speed.multiplier so the burn rate tracks the
+        // global speed setting — at 200× speed, the runway depletes
+        // 200× faster per real second.
+        const speedFactor = 1 / speed.multiplier;
         const last = s.history[s.history.length - 1] ?? 6;
-        const base = 0.001;
-        const stressDrain = underStress ? 0.005 : 0;
+        const base = 0.001 * speedFactor;
+        const stressDrain = underStress ? 0.005 * speedFactor : 0;
         const noise = Math.random() * 0.0008; // tiny upward jitter
         const next = Math.max(s.min, last - base - stressDrain + noise);
         s.history = [...s.history.slice(-(HISTORY_LEN - 1)), next];

@@ -31,19 +31,32 @@
 </select>
 
 <style>
+  /*
+    Subdued by default — this is an advanced setting, not a primary
+    action. Muted text + faint border. Hover/focus brightens for clear
+    interactive affordance.
+  */
   select {
-    background: #001a0d;
-    color: #33ff66;
-    border: 1px solid #114422;
+    background: #060c08;
+    color: #557755;
+    border: 1px solid #1a3322;
     padding: 0.2rem 0.4rem;
     font-family: inherit;
     font-size: 0.85em;
     width: 100%;
     cursor: pointer;
+    transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
+  }
+  select:hover {
+    color: #33ff66;
+    border-color: #33ff66;
+    background: #001a0d;
   }
   select:focus {
     outline: 0;
+    color: #33ff66;
     border-color: #33ff66;
+    background: #001a0d;
     box-shadow: 0 0 6px rgba(51, 255, 102, 0.3);
   }
 </style>

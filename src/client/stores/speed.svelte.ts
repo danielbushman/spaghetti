@@ -1,26 +1,40 @@
 /**
  * Global animation-speed multiplier.
  *
- * Every sleep() in the boot sequence, every per-char delay in the
- * typewriter, every fix-flow settle, etc. multiplies its duration by
- * `speed.multiplier`. multiplier < 1 = faster, > 1 = slower.
+ * `multiplier` is the value every paced delay in the app multiplies its
+ * duration by. multiplier < 1 = faster, > 1 = slower. The UI exposes a
+ * `factor` instead (1/multiplier, higher = faster) because that's the
+ * intuitive direction.
  *
- * Sticky via localStorage so the operator's preference survives reloads.
- * Clamped to a sane range — the slider goes 0.5×-5× speed (multiplier
- * 0.2-2.0) but we allow the underlying value down to 0.1 and up to 5
- * for safety.
+ * Range: factor 0.5× to 200×. Slow end stays gentle (0.5×); fast end
+ * extends to 200× so the whole game can be sped through for testing or
+ * impatient play.
+ *
+ * The model output itself can't be sped — that's bounded by the LLM's
+ * inference rate. Everything else (boot pauses, typewriter cadence,
+ * silence probes, auto-pick countdowns, work-tool rotation, runway
+ * burn, status-flash duration, boot flicker, afterimage) reads this
+ * store and scales accordingly.
  */
 
 const KEY = "spaghetti.speed";
 
+/** Slow-end factor (multiplier 2.0). */
+export const FACTOR_MIN = 0.5;
+/** Fast-end factor (multiplier 0.005). */
+export const FACTOR_MAX = 200;
+
 function readStored(): number {
+  if (typeof localStorage === "undefined") return 1.0;
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return 1.0;
     const n = parseFloat(raw);
-    if (Number.isFinite(n) && n > 0) return Math.max(0.1, Math.min(5.0, n));
+    if (Number.isFinite(n) && n > 0) {
+      return Math.max(1 / FACTOR_MAX, Math.min(1 / FACTOR_MIN, n));
+    }
   } catch {
-    /* localStorage may be disabled (private mode) */
+    /* localStorage may be disabled */
   }
   return 1.0;
 }
@@ -28,9 +42,9 @@ function readStored(): number {
 class SpeedStore {
   multiplier = $state(typeof localStorage !== "undefined" ? readStored() : 1.0);
 
-  /** Set the multiplier directly (lower = faster). Clamps + persists. */
+  /** Set the delay multiplier directly (lower = faster). Clamps + persists. */
   setMultiplier(v: number): void {
-    const clamped = Math.max(0.1, Math.min(5.0, v));
+    const clamped = Math.max(1 / FACTOR_MAX, Math.min(1 / FACTOR_MIN, v));
     this.multiplier = clamped;
     try {
       localStorage.setItem(KEY, String(clamped));
@@ -40,11 +54,11 @@ class SpeedStore {
   }
 
   /**
-   * Set by speed *factor*: 1× normal, 2× twice as fast, 5× very fast.
-   * Internally inverted to a delay multiplier.
+   * Set by speed factor (1× normal, 200× very fast). Clamps then inverts
+   * to a delay multiplier internally.
    */
   setFactor(factor: number): void {
-    const safe = Math.max(0.2, Math.min(10, factor));
+    const safe = Math.max(FACTOR_MIN, Math.min(FACTOR_MAX, factor));
     this.setMultiplier(1 / safe);
   }
 

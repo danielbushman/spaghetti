@@ -91,7 +91,8 @@
     // Randomized 30-60s window so the auto-pick doesn't feel mechanical.
     // Short enough for an idle operator to feel the game moving; long
     // enough that someone reading the triage message has time to respond.
-    const delay = 30_000 + Math.random() * 30_000;
+    // Scaled by speed.multiplier for the global time-warp setting.
+    const delay = (30_000 + Math.random() * 30_000) * speed.multiplier;
     autoPickTimer = setTimeout(runAutoPick, delay);
   }
 
@@ -145,7 +146,10 @@
     clearSilence();
     if (round >= 2) return;
     const window = round === 0 ? [35_000, 75_000] : [80_000, 150_000];
-    const delay = randIn(window[0], window[1]);
+    // Scale by speed.multiplier — at 200× the 35-75s window becomes
+    // 175-375ms. The model itself can't be sped up but the *wait
+    // before* invoking it is just a setTimeout, so it scales.
+    const delay = randIn(window[0], window[1]) * speed.multiplier;
     silenceTimer = setTimeout(async () => {
       if (busy || !boot.online || !selectedModel) {
         scheduleSilenceProbe(round + 1);
@@ -323,7 +327,11 @@
     autoPickTimer = null;
     if (scene.phase !== "triage") return;
     if (busy) {
-      autoPickTimer = setTimeout(runAutoPick, 3000 + Math.random() * 2000);
+      // Retry while busy — also speed-scaled so it tracks the global setting.
+      autoPickTimer = setTimeout(
+        runAutoPick,
+        (3000 + Math.random() * 2000) * speed.multiplier,
+      );
       return;
     }
     const target = telemetry.statusItems.find(

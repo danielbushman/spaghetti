@@ -14,6 +14,8 @@
  * implies, with a couple of canon-specific ones.
  */
 
+import { speed } from "./speed.svelte";
+
 const TOOLS: readonly string[] = [
   "scanning logs",
   "querying metrics",
@@ -77,7 +79,12 @@ class WorkStore {
       }
     }
     this.tool = next;
-    const duration = 4_000 + Math.random() * 6_000; // 4-10s
+    // 4-10s per tool name, scaled by the global speed setting. Clamped
+    // to a 60ms minimum so the label stays readable at extreme speeds —
+    // even at 200× the tool name sits long enough to register a flash
+    // of legibility rather than blurring entirely.
+    const raw = (4_000 + Math.random() * 6_000) * speed.multiplier;
+    const duration = Math.max(60, raw);
     this.timer = setTimeout(() => this.cycle(), duration);
   }
 }
