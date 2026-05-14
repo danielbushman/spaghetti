@@ -1,43 +1,53 @@
 <!--
   Industrial fluorescent-tube startup overlay.
 
-  Real fluorescent tubes don't switch on cleanly. Roughly:
+  Two stacked layers compose the effect:
 
-    1. Ballast charges (pitch dark hold).
-    2. The igniter strikes the gas — first attempts are weak electrical
-       cracks that fail to ionize. You see brief flickers.
-    3. Cathode warm-up: filaments heat up over a second or two and emit
-       a dim orange glow. The room is dim, not lit.
-    4. While still in warm-up, the gas tries to fully ionize and fails
-       once or twice — bright flashes that drop back to dim.
-    5. The arc finally catches: the room SLAMS to full brightness.
-    6. Stabilization: a couple of small dips back as the arc settles.
-    7. Steady state.
+    .flicker  (z 50)  — black scrim that dims/reveals the scene.
+                        Owns the "dark" and "dim glow" states.
+    .electric (z 51)  — radial-gradient electric-white overlay, screen
+                        blend mode. Brightens the scene at every pop
+                        for the actual electric-arc flash. Idle = 0.
 
-  This component composes that whole story on a fixed black scrim above
-  the scene. Total duration: 6.5 seconds. The boot lines in the chat panel
-  type through the dim warm-up phase, then the strike happens around the
-  time the system goes "online".
+  The two animations run on the same 13-second timeline but are
+  independent — each pop in the base sequence has a matching flash on
+  the electric overlay, sometimes with a longer afterglow.
 
-  Three distinct timing functions are layered through the sequence so each
-  physical phenomenon gets the right curve:
+  Story (13s, expanded from 6.5):
+
+     0.0 — 0.4 s   ballast charging, pitch black
+     0.4 — 3.0 s   FOUR failed electrical strikes of escalating
+                   strength; #4 fully clears scrim and almost catches
+     3.0 — 5.0 s   cathode warm-up: slow ease-in-out-quart ramp
+                   from near-dark to dim glow
+     5.0 — 6.5 s   dim hold with subtle hum variations
+     6.5 — 9.0 s   THREE failed bright-strikes during warm-up;
+                   #3 nearly catches with a sustained afterglow
+     9.0 — 9.5 s   drama pause at dim
+     9.5 s         THE STRIKE — both scrim and electric snap to max,
+                   electric holds with afterglow
+     9.5 — 11 s    stabilization stutter — three arc dips, each
+                   shallower than the last
+     11 — 12.5 s   smooth expo-out settle into steady state
+     12.5 — 13 s   one final tiny twitch
+
+  Three timing-function families layered across the sequence:
 
     step-end                              — sharp electrical events
-                                            (everything not noted below)
-    cubic-bezier(0.76, 0, 0.24, 1)        — ease-in-out-quart, the slow
+                                            (every crack, dip, strike)
+    cubic-bezier(0.76, 0, 0.24, 1)        — ease-in-out-quart, slow
                                             cathode warm-up ramp
-    cubic-bezier(0.16, 1, 0.3, 1)         — expo-out, the final settle
-                                            after the stabilization stutter
+    cubic-bezier(0.16, 1, 0.3, 1)         — expo-out, final settle
 
-  No conditional mount. The animation runs to completion regardless of
-  scene phase; `forwards` parks the scrim at opacity 0 once done, and
-  `pointer-events: none` means the lingering element is free.
+  Both overlays mount once at App startup, run to completion, and stay
+  at opacity 0 after. pointer-events: none on both — no lingering cost.
 -->
 <script lang="ts">
-  // No props. CSS animation owns the timeline.
+  // No props. Both animations are CSS-driven and one-shot.
 </script>
 
 <div class="flicker"></div>
+<div class="electric"></div>
 
 <style>
   .flicker {
@@ -47,113 +57,164 @@
     opacity: 1.0;
     pointer-events: none;
     z-index: 50;
-    animation: tube-warmup 6500ms forwards;
+    animation: tube-warmup 13000ms forwards;
   }
 
   /*
-    Opacity in this animation: 1.0 = pitch dark scrim covers everything,
-    0.0 = scrim is fully clear and scene is visible.
+    Electric arc overlay. Radial gradient so the flash reads as light
+    emanating from the tube (brighter center, falling off toward the
+    edges) rather than a flat colour wash. mix-blend-mode: screen makes
+    it ADD light to whatever's below — pure black underneath becomes
+    the overlay colour; bright scene underneath gets pushed toward white.
 
-    Each keyframe's `animation-timing-function` sets the curve used for
-    the segment that *follows* it, up to the next keyframe.
+    Hue is a faint mint — terminal-aesthetic appropriate ("the room
+    lights are spilling onto the green CRT") without going full white
+    or full cyan.
+  */
+  .electric {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at center,
+      #ffffff 0%,
+      #d8fff0 30%,
+      #88e6c8 70%,
+      #2ea08a 100%
+    );
+    opacity: 0;
+    pointer-events: none;
+    z-index: 51;
+    mix-blend-mode: screen;
+    animation: arc-flash 13000ms forwards;
+  }
+
+  /*
+    Base scrim: dim/dark/clear over 13 seconds.
+    Each keyframe's animation-timing-function sets the curve for its
+    *outgoing* segment, up to the next keyframe.
   */
   @keyframes tube-warmup {
-    /* ========================================================
-       Phase 1: Pre-strike (0 - 0.4s)
-       Ballast charging. Pitch black, nothing happening yet.
-       ======================================================== */
+    /* ───── Phase 1: ballast charging ───── */
     0%  { opacity: 1.00; animation-timing-function: step-end; }
-    4%  { opacity: 1.00; animation-timing-function: step-end; }
+    3%  { opacity: 1.00; animation-timing-function: step-end; }
 
-    /* ========================================================
-       Phase 2: Failed strikes (0.4 - 1.5s)
-       Three attempts of increasing strength. Each is a sharp electrical
-       crack that fails to fully ionize the gas; the third nearly catches.
-       ======================================================== */
-    6%  { opacity: 0.10; animation-timing-function: step-end; }   /* crack 1 — brief */
-    7%  { opacity: 1.00; animation-timing-function: step-end; }
-    14% { opacity: 0.40; animation-timing-function: step-end; }   /* crack 2 — mid */
+    /* ───── Phase 2: four failed strikes, escalating ─────
+       Each crack pops bright then snaps back to dark. Number 4 fully
+       clears the scrim — "almost!" — and falls back to "near dark"
+       (0.85, not full 1.0) because the cathodes are starting to glow. */
+    4%  { opacity: 0.20; animation-timing-function: step-end; }   /* crack 1 */
+    5%  { opacity: 1.00; animation-timing-function: step-end; }
+    9%  { opacity: 0.10; animation-timing-function: step-end; }   /* crack 2 */
+    10% { opacity: 1.00; animation-timing-function: step-end; }
+    14% { opacity: 0.05; animation-timing-function: step-end; }   /* crack 3 */
     15% { opacity: 1.00; animation-timing-function: step-end; }
-    22% { opacity: 0.05; animation-timing-function: step-end; }   /* crack 3 — almost! */
+    20% { opacity: 0.00; animation-timing-function: step-end; }   /* crack 4 — almost! */
+    22% { opacity: 0.85; animation-timing-function: step-end; }
 
-    /* ========================================================
-       Phase 3: Cathode warm-up (1.5 - 2.7s)
-       SMOOTH dark → dim ramp. The cathodes glow as their filaments heat;
-       the gas isn't ionized yet so we get only a faint ambient light.
-       This is the slow, suspenseful build. ease-in-out-quart lingers at
-       dark before accelerating through the middle and settling at dim.
-       ======================================================== */
+    /* ───── Phase 3: cathode warm-up ─────
+       Smooth dark → dim ramp. Ease-in-out-quart lingers at darker end,
+       accelerates through middle, settles into dim. Filaments heating. */
     23% { opacity: 0.92; animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1); }
-    42% { opacity: 0.50; animation-timing-function: step-end; }
+    38% { opacity: 0.50; animation-timing-function: step-end; }
 
-    /* ========================================================
-       Phase 4: Dim hold + hum (2.7 - 3.6s)
-       Suspenseful pause. The screen sits at dim glow while the gas hums
-       on the edge of ionizing. Subtle variations sell the "alive but
-       not yet" feel.
-       ======================================================== */
+    /* ───── Phase 4: dim hold + hum ─────
+       Subtle variations sell "alive on the edge of catching". */
+    41% { opacity: 0.48; animation-timing-function: step-end; }
+    44% { opacity: 0.53; animation-timing-function: step-end; }
+    47% { opacity: 0.49; animation-timing-function: step-end; }
     50% { opacity: 0.50; animation-timing-function: step-end; }
-    52% { opacity: 0.46; animation-timing-function: step-end; }
-    54% { opacity: 0.53; animation-timing-function: step-end; }
-    56% { opacity: 0.50; animation-timing-function: step-end; }
 
-    /* ========================================================
-       Phase 5: Failed bright-strikes (3.6 - 4.6s)
-       The arc tries to fully catch a couple of times — bright spikes
-       that drop back to dim. Each attempt is more confident than the
-       last (second one goes brighter than the first).
-       ======================================================== */
+    /* ───── Phase 5: three failed bright-strikes ─────
+       Arc tries to catch fully and falls back. Each more confident
+       than the last; #3 holds bright the longest before failing. */
+    54% { opacity: 0.15; animation-timing-function: step-end; }   /* near-strike 1 */
+    55% { opacity: 0.50; animation-timing-function: step-end; }
+    60% { opacity: 0.08; animation-timing-function: step-end; }   /* near-strike 2 */
     61% { opacity: 0.50; animation-timing-function: step-end; }
-    62% { opacity: 0.15; animation-timing-function: step-end; }   /* near-strike 1 */
-    63% { opacity: 0.50; animation-timing-function: step-end; }
-    69% { opacity: 0.50; animation-timing-function: step-end; }
-    70% { opacity: 0.06; animation-timing-function: step-end; }   /* near-strike 2 — almost! */
-    71% { opacity: 0.50; animation-timing-function: step-end; }
+    66% { opacity: 0.02; animation-timing-function: step-end; }   /* near-strike 3 — almost! */
+    67.5% { opacity: 0.55; animation-timing-function: step-end; }
 
-    /* Brief drama pause at dim, then ... */
-    73% { opacity: 0.50; animation-timing-function: step-end; }
+    /* ───── Phase 6: drama pause ───── */
+    72% { opacity: 0.55; animation-timing-function: step-end; }
 
-    /* ========================================================
-       Phase 6: THE STRIKE (4.9s)
-       Instant slam. The room is fully lit.
-       ======================================================== */
-    75% { opacity: 0.00; animation-timing-function: step-end; }
+    /* ───── Phase 7: THE STRIKE ─────
+       Instant slam to fully clear. The electric overlay does most of
+       the dramatic work here (held flash + long afterglow). */
+    73% { opacity: 0.00; animation-timing-function: step-end; }
 
-    /* ========================================================
-       Phase 7: Stabilization stutter (4.9 - 5.5s)
-       Arc establishing. Small dips back as the discharge finds
-       equilibrium. Each dip is shallower than the last.
-       ======================================================== */
-    76% { opacity: 0.00; animation-timing-function: step-end; }
-    77% { opacity: 0.18; animation-timing-function: step-end; }   /* arc dip 1 */
-    78% { opacity: 0.00; animation-timing-function: step-end; }
+    /* ───── Phase 8: stabilization stutter ─────
+       Three arc dips, each shallower than the last. */
+    76% { opacity: 0.22; animation-timing-function: step-end; }   /* dip 1 */
+    77% { opacity: 0.00; animation-timing-function: step-end; }
+    80% { opacity: 0.14; animation-timing-function: step-end; }   /* dip 2 */
     81% { opacity: 0.00; animation-timing-function: step-end; }
-    82% { opacity: 0.10; animation-timing-function: step-end; }   /* arc dip 2 */
-    83% { opacity: 0.00; animation-timing-function: step-end; }
+    84% { opacity: 0.07; animation-timing-function: step-end; }   /* dip 3 */
+    85% { opacity: 0.00; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
 
-    /* ========================================================
-       Phase 8: Smooth settle (5.5 - 6.3s)
-       Expo-out: snappy off the stutter, then a long tail into perfect
-       steady-state. Mostly invisible because we're already at 0, but
-       it gives the very end of the sequence a soft easing rather than
-       an abrupt stop.
-       ======================================================== */
-    86% { opacity: 0.00; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
-
-    /* ========================================================
-       Phase 9: Final twitch (6.3 - 6.4s)
-       The hint of one last flicker. Even after the arc has stabilized,
-       a real tube does this once or twice. Confirms it's a tube, not a
-       LED.
-       ======================================================== */
+    /* ───── Phase 9: smooth settle + twitch ───── */
     96% { opacity: 0.05; animation-timing-function: step-end; }
     97% { opacity: 0.00; animation-timing-function: step-end; }
 
     100% { opacity: 0.00; }
   }
 
+  /*
+    Electric overlay flashes. Each scrim event above gets a matching
+    flash here, sized to the event's intensity. Off (0) between events.
+    Each flash uses step-end timing for the snap on; the strike's
+    afterglow uses ease-out for a soft tail.
+  */
+  @keyframes arc-flash {
+    0%, 3.7%  { opacity: 0.00; animation-timing-function: step-end; }
+
+    /* Crack 1 — small flash */
+    4%        { opacity: 0.35; animation-timing-function: step-end; }
+    4.6%      { opacity: 0.00; animation-timing-function: step-end; }
+
+    /* Crack 2 — medium */
+    9%        { opacity: 0.50; animation-timing-function: step-end; }
+    9.7%      { opacity: 0.00; animation-timing-function: step-end; }
+
+    /* Crack 3 — bigger */
+    14%       { opacity: 0.65; animation-timing-function: step-end; }
+    14.8%     { opacity: 0.00; animation-timing-function: step-end; }
+
+    /* Crack 4 — almost! biggest pre-warmup flash, with tiny afterglow */
+    20%       { opacity: 0.80; animation-timing-function: step-end; }
+    21%       { opacity: 0.20; animation-timing-function: step-end; }
+    21.7%     { opacity: 0.00; animation-timing-function: step-end; }
+
+    /* Warm-up phase: no electric flashes; cathodes glow alone */
+    53.5%     { opacity: 0.00; animation-timing-function: step-end; }
+
+    /* Near-strike 1 */
+    54%       { opacity: 0.55; animation-timing-function: step-end; }
+    54.7%     { opacity: 0.00; animation-timing-function: step-end; }
+
+    /* Near-strike 2 — brighter */
+    60%       { opacity: 0.70; animation-timing-function: step-end; }
+    60.8%     { opacity: 0.00; animation-timing-function: step-end; }
+
+    /* Near-strike 3 — almost! with afterglow */
+    66%       { opacity: 0.85; animation-timing-function: step-end; }
+    66.7%     { opacity: 0.40; animation-timing-function: step-end; }
+    67.3%     { opacity: 0.10; animation-timing-function: step-end; }
+    67.8%     { opacity: 0.00; animation-timing-function: step-end; }
+
+    /* ───── THE STRIKE — the main event ─────
+       Hit full brightness, hold, then ease out into a long afterglow.
+       The afterglow is what gives the strike weight; without it the
+       flash is just a frame. */
+    73%       { opacity: 1.00; animation-timing-function: step-end; }
+    74.2%     { opacity: 1.00; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+    78%       { opacity: 0.15; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+    82%       { opacity: 0.00; animation-timing-function: step-end; }
+
+    100%      { opacity: 0.00; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .flicker {
+    .flicker, .electric {
       animation: none;
       opacity: 0;
     }
