@@ -14,10 +14,20 @@
   import type { StatusItem } from "../stores/telemetry.svelte";
   import { onMount } from "svelte";
   import { overshoot } from "../motion/easings";
+  import { effects } from "../stores/effects.svelte";
 
   let { item, onpick }: { item: StatusItem; onpick?: (id: string) => void } = $props();
 
   let el: HTMLDivElement | undefined = $state();
+
+  // True for ~350ms when this item is the focal point of a flash event
+  // (state change red→working or working→green triggered by App.svelte
+  // passing this id to effects.flash). The .spotlight CSS class amps
+  // the glow significantly so the item visibly pops *harder* than the
+  // muted-overlay shading on everything else.
+  const isFlashing = $derived(
+    effects.flashing && effects.flashingItemId === item.id,
+  );
 
   onMount(() => {
     if (!el) return;
@@ -49,6 +59,7 @@
 <button
   type="button"
   class="item state-{item.state}"
+  class:spotlight={isFlashing}
   bind:this={el}
   style="opacity: 0;"
   disabled={item.state !== "red"}
@@ -118,5 +129,32 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /*
+    Spotlight — applied for the ~350ms flash window when this item is
+    the focal point of a state change. Amplifies the dot's halo,
+    boosts the label brightness via its own text-shadow, and adds a
+    subtle background highlight. Pops *more* than the surrounding
+    dim, which is the whole point — the eye should be drawn to the
+    item that just changed, not to the scrim.
+
+    Asymmetric transitions: snaps bright fast on the flash edge,
+    breathes back slower as the flash window closes.
+  */
+  .label { transition: text-shadow 250ms ease-in-out; }
+  .item.spotlight {
+    background: rgba(220, 255, 230, 0.06);
+    transition: background 70ms ease-out;
+  }
+  .item.spotlight .dot {
+    text-shadow:
+      0 0 14px currentColor,
+      0 0 28px currentColor;
+    transition: text-shadow 70ms ease-out;
+  }
+  .item.spotlight .label {
+    text-shadow: 0 0 8px currentColor;
+    transition: text-shadow 70ms ease-out;
   }
 </style>

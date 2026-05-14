@@ -275,7 +275,9 @@
     logEvent({ type: "scene_phase", phase: "acting", picked: id });
     telemetry.startFixing(id);
     // Status state-change punctuation: brief screen mute + light pulse.
-    effects.flash();
+    // The id makes the affected status item spotlight itself harder than
+    // the surrounding dim.
+    effects.flash(id);
     clearSilence();
 
     busy = true;
@@ -287,8 +289,9 @@
 
     await speedSleep(settleMs);
     telemetry.completeFix(id);
-    // Same punctuation on the working → green transition.
-    effects.flash();
+    // Same punctuation on the working → green transition; same id so
+    // the resolving item gets spotlit a second time as it lands.
+    effects.flash(id);
     scene.phase = "open";
     logEvent({ type: "scene_phase", phase: "open", resolved: id });
     scheduleSilenceProbe(0);
@@ -490,7 +493,14 @@
     transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   .status-flash.active {
-    opacity: 0.55;
+    /*
+      Much lower than before — a *hint* of dim rather than a curtain.
+      The focal status item brightens hard on its own (see StatusItem's
+      .spotlight state), so the contrast between focused item and
+      shaded surroundings does the real work; the scrim just nudges
+      the rest of the scene back so the eye is drawn forward.
+    */
+    opacity: 0.22;
     /* Fast fade in on activation; slower fade out kicks in once
        `active` is removed (when the effects store clears flashing). */
     transition: opacity 70ms ease-out;
