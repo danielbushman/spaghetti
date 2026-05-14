@@ -82,6 +82,21 @@
   let bootSession = 0;
 
   /**
+   * Remount key for BootFlicker. Bumped on every restart so the boot
+   * subtree unmounts and remounts cleanly — that re-runs the CSS
+   * keyframes (flicker scrim, electric overlay, spaghetti afterimage)
+   * and re-schedules the onMount setTimeouts that fire flare bursts
+   * and 3D-positioned audio cues.
+   *
+   * Without this, a loop-driven autoContinue restart (which doesn't
+   * transition gateState through "warning") would leave BootFlicker
+   * mounted, its keyframes already complete and its setTimeouts
+   * already fired — the operator would see runBoot replay the typed
+   * text into a black screen with no flicker, no flares, no sound.
+   */
+  let bootKey = $state(0);
+
+  /**
    * Auto-pick timer. Started when scene enters triage; if the operator
    * hasn't picked an item by the time it fires, the agent picks halberd-
    * monitor for them (the bleeder, the stated default). True idler — if
@@ -524,6 +539,11 @@
     telemetry.reset();
     work.reset();
     effects.reset();
+    // Force BootFlicker to remount so its CSS keyframes + onMount
+    // schedulers (flare bursts, audio cues) run fresh. Needed for
+    // autoContinue, and harmless for the normal warning-gate path
+    // (which already gets a remount via the {#if/else} swap).
+    bootKey++;
     if (opts.autoContinue) {
       gateState = "game";
       loop.markRunStart();
@@ -584,7 +604,9 @@
 {:else if gateState === "goodbye"}
   <Goodbye />
 {:else}
-  <BootFlicker />
+  {#key bootKey}
+    <BootFlicker />
+  {/key}
   <!--
     Status-change flash overlay. Sits above the scene (z 200), under
     the BlinkingLight (z 250) so the light visibly pulses while the
