@@ -29,6 +29,7 @@
   import { speed } from "./stores/speed.svelte";
   import { work } from "./stores/work.svelte";
   import { font } from "./stores/font.svelte";
+  import { effects } from "./stores/effects.svelte";
   import {
     AWAKENING_SYSTEM_PROMPT,
     CHECKIN_INSTRUCTION,
@@ -260,6 +261,8 @@
     scene.phase = "acting";
     logEvent({ type: "scene_phase", phase: "acting", picked: id });
     telemetry.startFixing(id);
+    // Status state-change punctuation: brief screen mute + light pulse.
+    effects.flash();
     clearSilence();
 
     busy = true;
@@ -271,6 +274,8 @@
 
     await speedSleep(settleMs);
     telemetry.completeFix(id);
+    // Same punctuation on the working → green transition.
+    effects.flash();
     scene.phase = "open";
     logEvent({ type: "scene_phase", phase: "open", resolved: id });
     scheduleSilenceProbe(0);
@@ -411,11 +416,19 @@
       clearAutoPick();
       telemetry.stop();
       work.stop();
+      effects.stop();
     };
   });
 </script>
 
 <BootFlicker />
+<!--
+  Status-change flash overlay. Sits above the scene (z 200), under the
+  BlinkingLight (z 250) so the light visibly pulses while the rest
+  dims. Fast fade in (70ms ease-out), slower fade out (250ms) — the
+  punctuation lands sharp and breathes back.
+-->
+<div class="status-flash" class:active={effects.flashing}></div>
 <div class="screen">
   <Header bind:selectedModel {busy} />
   <main class="main">
@@ -426,6 +439,27 @@
 </div>
 
 <style>
+  /*
+    Status-change flash overlay. Black scrim that briefly fades in/out
+    over the whole viewport. BlinkingLight sets its own z-index above
+    this layer so it pulses through unimpeded.
+  */
+  .status-flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 200;
+    background: #000;
+    opacity: 0;
+    transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .status-flash.active {
+    opacity: 0.55;
+    /* Fast fade in on activation; slower fade out kicks in once
+       `active` is removed (when the effects store clears flashing). */
+    transition: opacity 70ms ease-out;
+  }
+
   .screen {
     display: grid;
     grid-template-columns: 1fr 22rem;
