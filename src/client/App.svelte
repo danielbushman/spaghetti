@@ -28,6 +28,7 @@
   import { telemetry, matchStatusItem } from "./stores/telemetry.svelte";
   import { speed } from "./stores/speed.svelte";
   import { work } from "./stores/work.svelte";
+  import { font } from "./stores/font.svelte";
   import {
     AWAKENING_SYSTEM_PROMPT,
     CHECKIN_INSTRUCTION,
@@ -104,6 +105,15 @@
   $effect(() => {
     if (!selectedModel) return;
     try { localStorage.setItem(MODEL_KEY, selectedModel); } catch {}
+  });
+
+  // Push the chosen font family onto a CSS custom property so the
+  // global body rule picks it up. Reading `font.current.family`
+  // registers the dependency; the effect re-runs whenever the operator
+  // picks a different font in the header dropdown.
+  $effect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.style.setProperty("--font-mono", font.current.family);
   });
 
   function clearSilence(): void {

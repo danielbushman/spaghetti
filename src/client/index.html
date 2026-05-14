@@ -5,23 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>spaghetti :: awakening</title>
     <!--
-      Space Mono — designed by Colophon Foundry. Free via Google Fonts.
-      A monospaced font with noticeably more personality than JetBrains
-      Mono: distinctive g, a, &, slight slab serifs, retro-typewriter
-      character. Loaded with both weights (400/700) and both italic
-      variants for full flexibility. preconnect hints shave a round-trip
-      off the first request.
+      Six curated monospace fonts loaded via Google Fonts. The runtime
+      picker (FontSelect in the header, store in stores/font.svelte.ts)
+      switches between them by setting the --font-mono CSS variable on
+      documentElement; the body rule below reads from that variable.
+
+      All six load upfront with display=swap so the user can flip
+      between them instantly. Total payload is ~600KB compressed; modern
+      connections handle that in under a second.
+
+      Spectrum:
+        Space Mono        retro-modern typewriter (default)
+        JetBrains Mono    modern clean programmer
+        IBM Plex Mono     corporate-clean with character
+        Cutive Mono       classic typewriter
+        VT323             authentic CRT terminal (pixelated)
+        Major Mono        sparse futuristic
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Cutive+Mono&family=VT323&family=Major+Mono+Display&display=swap"
       rel="stylesheet"
     >
     <style>
       html, body { margin: 0; padding: 0; height: 100%; background: #000; }
+      :root {
+        /* Default — overwritten at runtime from the font store. */
+        --font-mono: 'Space Mono', 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+      }
       body {
-        font-family: 'Space Mono', 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+        font-family: var(--font-mono);
         font-size: 14px;
         line-height: 1.4;
         color: #33ff66;

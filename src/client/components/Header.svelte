@@ -3,6 +3,7 @@
   import ModelSelect from "./ModelSelect.svelte";
   import ThinkingIndicator from "./ThinkingIndicator.svelte";
   import SpeedSlider from "./SpeedSlider.svelte";
+  import FontSelect from "./FontSelect.svelte";
   import { boot } from "../stores/boot.svelte";
   import { work } from "../stores/work.svelte";
 
@@ -32,6 +33,7 @@
          agent bubble at the edge of the conversation. -->
     <ThinkingIndicator active={indicatorActive} label={indicatorLabel} subtle />
   </span>
+  <FontSelect />
   <SpeedSlider />
   <ModelSelect bind:value={selectedModel} />
 </header>
@@ -39,7 +41,8 @@
 <style>
   header {
     display: grid;
-    grid-template-columns: 1.5em auto 1fr 10rem 16rem;
+    /* light  title  status   font   speed   model */
+    grid-template-columns: 1.5em auto 1fr 9rem 10rem 15rem;
     align-items: center;
     gap: 0.75rem;
     padding: 0.4rem 0.6rem;
@@ -64,15 +67,15 @@
     overflow: hidden;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 980px) {
     header {
       grid-template-columns: 1.5em 1fr auto auto;
       grid-template-areas:
-        "light title status model"
-        "speed speed speed speed";
+        "light title  status model"
+        "font  font   speed  speed";
     }
-    header > :global(.speed) {
-      grid-area: speed;
-    }
+    header > :global(.speed) { grid-area: speed; }
+    /* FontSelect is just a <select>; target its tag at the same level. */
+    header > :global(select[aria-label="font family"]) { grid-area: font; }
   }
 </style>
