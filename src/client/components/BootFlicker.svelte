@@ -76,9 +76,20 @@
    * bigger without dragging out.
    */
   const BASE_DURATION_MS = 13_000;
+  /** Strike happens at 73% of the flicker timeline. */
+  const STRIKE_PCT = 0.73;
+  /**
+   * Afterimage has its own duration, longer than the flicker remainder,
+   * so the colour-shift fade plays out unhurried after the strike.
+   * Scaled by the same speed multiplier as everything else.
+   */
+  const AFTERIMAGE_FADE_BASE_MS = 7_000;
+
   // Capture at mount — CSS animation runs to its own schedule, so once
   // we hand it a duration the value is fixed for this run.
   const totalMs = BASE_DURATION_MS * speed.multiplier;
+  const afterimageDurationMs = AFTERIMAGE_FADE_BASE_MS * speed.multiplier;
+  const afterimageDelayMs = totalMs * STRIKE_PCT;
 
   const BURSTS: Array<{ pct: number; count: number; intensity: number }> = [
     { pct: 0.17, count: 5,  intensity: 1.0 },
@@ -123,7 +134,11 @@
   animation; the inner span owns the text + static transform. Keeps
   the layout math separate from the visual stretch.
 -->
-<div class="afterimage" style="animation-duration: {totalMs}ms" aria-hidden="true">
+<div
+  class="afterimage"
+  style="animation-duration: {afterimageDurationMs}ms; animation-delay: {afterimageDelayMs}ms;"
+  aria-hidden="true"
+>
   <span class="stretched">spaghetti</span>
 </div>
 
@@ -285,20 +300,19 @@
     Two-layer structure:
 
     .afterimage  flex container that pins the text in the upper third
-                 of the viewport. Owns the opacity animation; nothing
-                 else moves.
+                 of the viewport. Owns opacity + colour + text-shadow
+                 (all animated). animation-delay = strike moment, so
+                 the element is invisible (base opacity 0) until then
+                 and punches in at the delay edge.
 
-    .stretched   the actual text, scaleY-stretched ~3.5× from its TOP
-                 edge so it hangs downward like pasta. The transform
-                 is static — only opacity animates. This is what
-                 makes the motion read as a sharp flash rather than
-                 a wobbling cross-fade (multiple animating properties
-                 was the original "hiccupy" problem).
+    .stretched   the actual text, scaleY-stretched 3.5× from its TOP
+                 edge so it hangs downward like pasta. Colour and
+                 text-shadow inherit from .afterimage so they pick up
+                 the animated values — only transform is static here.
 
-    Position: padding-top 16vh puts the text's top edge at ~1/6 down
-    from the top, with scaleY extending it down through the upper-
-    middle region. Visual centre ends up around the golden-ratio line
-    rather than dead-centre. Looks more like a composed image.
+    The animation uses linear timing so colour and opacity interpolate
+    at the same rate. Mismatched easings between multi-property
+    animations was the original "hiccupy" problem.
   */
   .afterimage {
     position: fixed;
@@ -310,9 +324,11 @@
     pointer-events: none;
     z-index: 55;
     opacity: 0;
+    color: #ffffff;
+    text-shadow: none;
     user-select: none;
-    animation: spaghetti-afterimage 13000ms forwards;
-    will-change: opacity;
+    animation: spaghetti-afterimage 7000ms linear forwards;
+    will-change: opacity, color, text-shadow;
   }
   .afterimage .stretched {
     display: inline-block;
@@ -320,26 +336,59 @@
     font-size: clamp(3.5rem, 12vw, 14rem);
     font-weight: bold;
     letter-spacing: 0.18em;
-    color: #c8ffd8;
-    text-shadow: 0 0 24px rgba(136, 230, 200, 0.6);
+    /* colour + text-shadow inherited from .afterimage */
     transform: scaleY(3.5);
     transform-origin: top center;
     white-space: nowrap;
   }
 
   /*
-    Opacity-only keyframes. Steps + holds rather than smooth ramps so
-    the punch and the fade feel deliberate rather than wobbly. The
-    final tail is the only smooth segment — that's where "lingers and
-    fades" reads naturally.
+    Colour-shift fade. Five keyframes, linear interpolation between
+    them. The colour walks from electric-flash white through mint and
+    lavender to fuchsia violet, while opacity glides 0.95 → 0 over
+    the full 7 seconds. Slow enough that the colour drift reads as
+    a deliberate temperature shift rather than a cross-fade jitter.
+
+    The animation only starts at the strike moment (animation-delay
+    on the element). Before that the base opacity 0 keeps the element
+    invisible.
   */
   @keyframes spaghetti-afterimage {
-    0%, 72.95% { opacity: 0; }
-    73%        { opacity: 0.95; }   /* punch with the strike */
-    78%        { opacity: 0.80; }   /* held bright */
-    85%        { opacity: 0.45; }   /* settle */
-    92%        { opacity: 0.18; }   /* trace */
-    100%       { opacity: 0; }      /* gone */
+    /* Punch in: electric white-mint flash. */
+    0% {
+      opacity: 0.95;
+      color: #ffffff;
+      text-shadow:
+        0 0 80px rgba(216, 255, 240, 0.9),
+        0 0 160px rgba(136, 230, 200, 0.55);
+    }
+    /* Held bright; very faint mint tint. */
+    15% {
+      opacity: 0.78;
+      color: #e8fff0;
+      text-shadow:
+        0 0 56px rgba(200, 240, 220, 0.65),
+        0 0 100px rgba(180, 220, 200, 0.25);
+    }
+    /* Drifting through dusty rose / lavender — the temperature
+       transitions from cool electric to warm magenta. */
+    50% {
+      opacity: 0.42;
+      color: #d090d0;
+      text-shadow: 0 0 40px rgba(208, 144, 208, 0.55);
+    }
+    /* Almost there — saturated fuchsia, low opacity. */
+    85% {
+      opacity: 0.15;
+      color: #c850e0;
+      text-shadow: 0 0 22px rgba(200, 80, 224, 0.4);
+    }
+    /* Final: fuchsia violet, faded to nothing. */
+    100% {
+      opacity: 0;
+      color: #c026d3;
+      text-shadow: none;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
