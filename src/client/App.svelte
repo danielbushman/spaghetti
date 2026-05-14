@@ -32,6 +32,7 @@
   import { work } from "./stores/work.svelte";
   import { font } from "./stores/font.svelte";
   import { effects } from "./stores/effects.svelte";
+  import { loop } from "./stores/loop.svelte";
   import { audioEngine, syncAudioStoreToEngine } from "./audio";
   import {
     AWAKENING_SYSTEM_PROMPT,
@@ -471,6 +472,9 @@
     await audioEngine.resume();
     syncAudioStoreToEngine();
     gateState = "game";
+    // Mark the current instant as the start of this run, so the loop
+    // tick can measure elapsed time from a known reference.
+    loop.markRunStart();
     // runBoot starts the typed boot sequence + scene state machine.
     // Deferred until now so the user doesn't see flicker/flash before
     // they've consented past the photosensitivity gate.
@@ -499,8 +503,13 @@
    * User preferences (selectedModel via localStorage, speed.multiplier,
    * font.current) are untouched — same as how localStorage survives a
    * real reload.
+   *
+   * `autoContinue` skips the photosensitivity gate and goes straight
+   * back into runBoot. Used by the replay-loop tick — the warning
+   * has already been acknowledged in this tab; bouncing back to it
+   * every loop cycle would block the loop.
    */
-  function restart(): void {
+  function restart(opts: { autoContinue?: boolean } = {}): void {
     logEvent({ type: "session_restart" });
     resetSessionId();
     bootSession++; // invalidates the in-flight runBoot, if any
@@ -515,7 +524,13 @@
     telemetry.reset();
     work.reset();
     effects.reset();
-    gateState = "warning";
+    if (opts.autoContinue) {
+      gateState = "game";
+      loop.markRunStart();
+      runBoot();
+    } else {
+      gateState = "warning";
+    }
   }
 
   onMount(() => {
@@ -535,8 +550,23 @@
     }
     window.addEventListener("keydown", onGlobalKeyDown);
 
+    // Replay-loop tick. Every 250ms while the game is live, check
+    // whether wall-clock elapsed has crossed the captured marker; if
+    // so, soft-restart with autoContinue so the same beat replays.
+    // No-op while the gate is showing (the warning blocks the run)
+    // or when no loop is set.
+    const loopTick = setInterval(() => {
+      if (gateState !== "game") return;
+      const target = loop.targetMs;
+      if (target === null) return;
+      if (loop.getElapsed() >= target) {
+        restart({ autoContinue: true });
+      }
+    }, 250);
+
     return () => {
       window.removeEventListener("keydown", onGlobalKeyDown);
+      clearInterval(loopTick);
       clearSilence();
       clearAutoPick();
       telemetry.stop();
