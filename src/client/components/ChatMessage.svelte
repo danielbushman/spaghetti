@@ -191,7 +191,7 @@
   */
   .question, .char.question {
     display: inline-block;
-    color: #aaffaa;
+    color: #88ee88;
     vertical-align: baseline;
     will-change: transform, color, text-shadow;
   }
@@ -219,29 +219,33 @@
   }
 
   @keyframes question-wobble {
-    /* Subtle rotation + skew + asymmetric scale → "slimy" feel. Mean
-       transform is identity-ish, but each keyframe deforms slightly
-       differently so the character never sits still. */
-    0%   { transform: rotate(-1.5deg) skewY(0.4deg) scale(1.00, 1.00); }
-    22%  { transform: rotate(1.0deg)  skewY(-0.8deg) scale(1.05, 0.94); }
-    45%  { transform: rotate(-0.5deg) skewY(0.0deg) scale(0.95, 1.05); }
-    68%  { transform: rotate(2.0deg)  skewY(0.6deg) scale(1.03, 0.97); }
-    85%  { transform: rotate(-1.0deg) skewY(-0.4deg) scale(0.98, 1.03); }
-    100% { transform: rotate(-1.5deg) skewY(0.4deg) scale(1.00, 1.00); }
+    /* Rotation + skew + asymmetric scale + translateY bob → "slime in
+       motion" feel. Bigger amplitudes than first pass so it's visible
+       from across the chat panel. translateY makes the character bob
+       in and out of the baseline, like it's floating in goo. */
+    0%   { transform: rotate(-3deg) skewY(1deg)    scale(1.00, 1.00) translateY(0); }
+    20%  { transform: rotate(4deg)  skewY(-2deg)   scale(1.12, 0.88) translateY(-2.5px); }
+    45%  { transform: rotate(-2deg) skewY(0.5deg)  scale(0.90, 1.13) translateY(1.5px); }
+    68%  { transform: rotate(5deg)  skewY(2deg)    scale(1.10, 0.93) translateY(-1px); }
+    85%  { transform: rotate(-1deg) skewY(-1deg)   scale(0.94, 1.09) translateY(1px); }
+    100% { transform: rotate(-3deg) skewY(1deg)    scale(1.00, 1.00) translateY(0); }
   }
 
   @keyframes question-glimmer {
-    /* Brightness pulse — base mint-green to bright white-green with a
-       soft halo. Stays within reading range. */
+    /* Punchier pulse. Base is a saturated slime green; peak goes
+       brighter (cream-green) with a much stronger halo so the
+       character clearly *glows* at the bright moment. */
     0%, 100% {
-      color: #aaffaa;
-      text-shadow: 0 0 2px rgba(170, 255, 170, 0.4);
+      color: #88ee88;
+      text-shadow:
+        0 0 3px rgba(140, 240, 140, 0.55),
+        0 0 6px rgba(100, 220, 130, 0.25);
     }
     50% {
-      color: #e0ffd8;
+      color: #f5ffe0;
       text-shadow:
-        0 0 8px rgba(204, 255, 200, 0.85),
-        0 0 18px rgba(100, 255, 130, 0.4);
+        0 0 14px rgba(220, 255, 200, 1),
+        0 0 32px rgba(120, 255, 130, 0.6);
     }
   }
 
