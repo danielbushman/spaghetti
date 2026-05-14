@@ -44,6 +44,23 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * "ghetti" is the runtime — when meatball returns empty, ghetti steps in
+ * with a small status note. Light rotation so the line isn't identical
+ * every silent turn.
+ */
+const GHETTI_SILENT_LINES: readonly string[] = [
+  "// ghetti: meatball will be with you when they are ready",
+  "// ghetti reports: meatball is composing — back shortly",
+  "// ghetti: meatball needs a moment",
+  "// ghetti says: meatball is gathering their thoughts",
+  "// ghetti: meatball is still working on it",
+];
+
+function pickGhettiSilentLine(): string {
+  return GHETTI_SILENT_LINES[Math.floor(Math.random() * GHETTI_SILENT_LINES.length)];
+}
+
+/**
  * Reduce a chat-failure response body to a single readable line.
  *
  * Our /api/chat wraps the upstream's errors as
@@ -178,7 +195,7 @@ class ChatStore {
     const final = m.target.trim();
     if (!final) {
       m.role = "system";
-      m.visible = "// agent stayed silent";
+      m.visible = pickGhettiSilentLine();
       m.target = m.visible;
       logEvent({ type: "agent_silent", model });
       return;
