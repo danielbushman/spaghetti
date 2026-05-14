@@ -12,10 +12,12 @@
   import type { Message } from "../stores/chat.svelte";
   import { onMount } from "svelte";
   import { overshoot, smooth } from "../motion/easings";
+  import { burstSparks } from "../motion/sparks";
 
   let { message }: { message: Message } = $props();
 
   let el: HTMLDivElement | undefined = $state();
+  let cursorEl: HTMLSpanElement | undefined = $state();
   let cursorOn = $state(true);
 
   // Entry motion (one-shot). The component never replays this on prop change.
@@ -51,6 +53,34 @@
     return () => clearInterval(blinker);
   });
 
+  // Spark particle emitter. While typing, fires bursts of 1-3 small sparks
+  // every ~90-220ms at the cursor's current viewport position. The cursor
+  // moves as text grows, so sparks naturally trail behind the leading edge
+  // of typed prose. Sparks themselves are body-appended fire-and-forget
+  // DOM nodes — see motion/sparks.ts.
+  $effect(() => {
+    if (!message.typing) return;
+    let scheduled: ReturnType<typeof setTimeout> | null = null;
+
+    function tick() {
+      if (!message.typing || !cursorEl) return;
+      const rect = cursorEl.getBoundingClientRect();
+      // Spawn slightly inset from the cursor's right edge, vertically
+      // centered. Sparks then fly mostly up-and-right and arc down.
+      const x = rect.right - 2;
+      const y = rect.top + rect.height * 0.4;
+      burstSparks(x, y);
+      scheduled = setTimeout(tick, 90 + Math.random() * 130);
+    }
+
+    // Small initial delay so the first spark doesn't fire on the same
+    // frame the cursor mounts.
+    scheduled = setTimeout(tick, 70);
+    return () => {
+      if (scheduled) clearTimeout(scheduled);
+    };
+  });
+
   let prefix = $derived(
     message.role === "user"  ? "you> "  :
     message.role === "agent" ? "agent> " :
@@ -76,7 +106,7 @@
 <div class="msg msg-{message.role}" bind:this={el} style="opacity: 0;"
   ><span class="prefix">{prefix}</span><span class="text"
   >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}<span class="char">{ch}</span>{/each}{:else}{message.visible}{/if}</span
-  >{#if message.typing}<span class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
+  >{#if message.typing}<span bind:this={cursorEl} class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
 
 <style>
   .msg {

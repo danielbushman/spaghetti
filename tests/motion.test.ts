@@ -218,6 +218,16 @@ describe("typewriter cadence", () => {
   });
 });
 
+describe("sparks", () => {
+  test("burstSparks is a no-op in non-DOM env (no throw)", async () => {
+    // The module reads `typeof document` and bails when undefined, so
+    // importing and invoking under bun:test (no DOM) must not crash.
+    const { burstSparks, spawnSpark } = await import("../src/client/motion/sparks");
+    expect(() => burstSparks(0, 0)).not.toThrow();
+    expect(() => spawnSpark(10, 20, -1)).not.toThrow();
+  });
+});
+
 describe("catmullRom", () => {
   test("passes through each waypoint", () => {
     const points: Array<readonly [number, number]> = [

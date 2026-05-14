@@ -33,6 +33,23 @@
           rgba(0,0,0,0.10) 3px
         );
       }
+
+      /*
+        Spark particle base. Each spark is a body-appended div animated by
+        the Web Animation API (motion/sparks.ts). Inline styles set per-
+        instance size, color, position, and the WAAPI animation owns
+        transform + opacity.
+      */
+      .spark {
+        position: fixed;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 100;
+        will-change: transform, opacity;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spark { display: none; }
+      }
     </style>
   </head>
   <body>
