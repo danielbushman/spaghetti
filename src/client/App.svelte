@@ -117,14 +117,25 @@
 
     await ollama.refresh();
 
-    // Pick a model: prefer the operator's saved choice if still installed,
-    // else the first chat-capable model. Embedding-only models would 404 the
-    // first turn, so they're filtered out of the default pick.
+    // Pick a model:
+    //   1. The operator's saved choice, but only if it's still installed AND
+    //      chat-capable. Validating against `chatModels` (not `models`) means
+    //      a stale embedding choice from before the filter landed gets
+    //      rejected here, and the $effect overwrites localStorage with a
+    //      good default on the next tick — self-healing.
+    //   2. Otherwise the smallest chat model. Smallest = fastest cold-load,
+    //      which matters for first impressions: a 70B model can take a
+    //      minute to load on first call and looks like the app is hung.
     const stored = readStoredModel();
-    if (stored && ollama.models.some((m) => m.name === stored)) {
+    const storedStillUsable =
+      stored && ollama.chatModels.some((m) => m.name === stored);
+    if (storedStillUsable) {
       selectedModel = stored;
     } else {
-      selectedModel = ollama.chatModels[0]?.name ?? null;
+      const bySize = [...ollama.chatModels].sort(
+        (a, b) => (a.size ?? Infinity) - (b.size ?? Infinity),
+      );
+      selectedModel = bySize[0]?.name ?? null;
     }
 
     boot.phase = "warm";

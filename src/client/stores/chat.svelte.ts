@@ -35,6 +35,37 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Reduce a chat-failure response body to a single readable line.
+ *
+ * Our /api/chat wraps Ollama errors as `{"error": "ollama returned 400: {...}"}`,
+ * where the inner `{...}` is another JSON document with Ollama's own
+ * `{"error": "..."}` message. We dig through both layers so the surfaced
+ * line reads as the human cause, not the transport.
+ *
+ *   raw body:       {"error":"ollama returned 400: {\"error\":\"\\\"foo\\\" does not support chat\"}"}
+ *   surfaced line:  "foo" does not support chat
+ */
+function prettyChatError(body: string, status: number, statusText: string): string {
+  if (!body) return statusText || `status ${status}`;
+  try {
+    const env = JSON.parse(body) as { error?: string };
+    const outer = env.error ?? body;
+    const innerMatch = outer.match(/^ollama returned \d+: (\{.*\})$/);
+    if (innerMatch) {
+      try {
+        const inner = JSON.parse(innerMatch[1]) as { error?: string };
+        if (typeof inner.error === "string") return inner.error;
+      } catch {
+        // Inner wasn't JSON after all; fall back to the outer message.
+      }
+    }
+    return outer;
+  } catch {
+    return body;
+  }
+}
+
 export class Message {
   readonly id: number;
   readonly ts: number;
@@ -202,7 +233,7 @@ class ChatStore {
         });
         if (!r.ok || !r.body) {
           const text = await r.text().catch(() => "");
-          receiveError = `${r.status} ${text || r.statusText}`.trim();
+          receiveError = prettyChatError(text, r.status, r.statusText);
           return;
         }
         const reader = r.body.getReader();
