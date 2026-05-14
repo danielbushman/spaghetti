@@ -6,6 +6,7 @@
   import FontSelect from "./FontSelect.svelte";
   import FullscreenToggle from "./FullscreenToggle.svelte";
   import RestartButton from "./RestartButton.svelte";
+  import MuteButton from "./MuteButton.svelte";
   import { boot } from "../stores/boot.svelte";
   import { work } from "../stores/work.svelte";
 
@@ -39,6 +40,7 @@
   </span>
   <FontSelect />
   <SpeedSlider />
+  <MuteButton />
   <FullscreenToggle />
   <RestartButton {onrestart} />
   <ModelSelect bind:value={selectedModel} />
@@ -47,8 +49,8 @@
 <style>
   header {
     display: grid;
-    /* light  title  status   font   speed   fs   restart   model */
-    grid-template-columns: 1.5em auto 1fr 9rem 10rem auto auto 15rem;
+    /* light  title  status   font   speed   mute  fs   restart   model */
+    grid-template-columns: 1.5em auto 1fr 9rem 10rem auto auto auto 15rem;
     align-items: center;
     gap: 0.75rem;
     padding: 0.4rem 0.6rem;

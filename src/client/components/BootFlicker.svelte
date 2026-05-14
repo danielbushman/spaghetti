@@ -47,6 +47,7 @@
   import { onMount } from "svelte";
   import { flareBurst } from "../motion/flares";
   import { speed } from "../stores/speed.svelte";
+  import { playCrack, playStrike, playTubeHum } from "../audio/sounds";
 
   /**
    * Flare bursts synced to the CSS flash keyframes.
@@ -102,6 +103,31 @@
     { pct: 0.73, count: 18, intensity: 1.8 },
   ];
 
+  /**
+   * Audio cues synced to the boot timeline. The percentages are picked
+   * from the CSS keyframes:
+   *   17%  small crackle on the first failed strike
+   *   23%  start a slow tube hum during cathode warm-up (runs for the
+   *        rest of the dim hold, ends by 70%)
+   *   50%  a louder crack mid-dim — "almost catches"
+   *   73%  THE STRIKE — sub-bass thump + bright crack
+   *
+   * All are no-ops if audio is muted or the AudioContext hasn't
+   * resumed yet.
+   */
+  type AudioCue = { pct: number; play: () => void };
+  const AUDIO_CUES: AudioCue[] = [
+    { pct: 0.17, play: () => playCrack(0.5) },
+    { pct: 0.23, play: () => {
+        // Hum spans cathode-warm-up + dim-hold (~23%-70% of timeline,
+        // converted to absolute ms at boot time).
+        const humDuration = (totalMs * (0.70 - 0.23)) / 1000;
+        playTubeHum(humDuration, 0.7);
+      } },
+    { pct: 0.50, play: () => playCrack(0.85) },
+    { pct: 0.73, play: () => playStrike(1.0) },
+  ];
+
   function originFromLightOrFallback(): { x: number; y: number } {
     if (typeof document === "undefined") return { x: 30, y: 30 };
     const light = document.querySelector(".light");
@@ -119,6 +145,9 @@
         const { x, y } = originFromLightOrFallback();
         flareBurst(x, y, count, { intensity });
       }, totalMs * pct));
+    }
+    for (const { pct, play } of AUDIO_CUES) {
+      handles.push(setTimeout(play, totalMs * pct));
     }
     return () => {
       for (const h of handles) clearTimeout(h);

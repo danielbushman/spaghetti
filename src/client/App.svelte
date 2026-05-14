@@ -32,6 +32,7 @@
   import { work } from "./stores/work.svelte";
   import { font } from "./stores/font.svelte";
   import { effects } from "./stores/effects.svelte";
+  import { audioEngine, syncAudioStoreToEngine } from "./audio";
   import {
     AWAKENING_SYSTEM_PROMPT,
     CHECKIN_INSTRUCTION,
@@ -461,8 +462,14 @@
     dispatch(next);
   });
 
-  function onWarningContinue(): void {
+  async function onWarningContinue(): Promise<void> {
     if (gateState !== "warning") return;
+    // Resume the AudioContext now — this is the first user gesture
+    // (key press or click on the warning), which browsers require
+    // before any sound can play. Sync the persisted mute/volume
+    // state into the engine once it's live.
+    await audioEngine.resume();
+    syncAudioStoreToEngine();
     gateState = "game";
     // runBoot starts the typed boot sequence + scene state machine.
     // Deferred until now so the user doesn't see flicker/flash before

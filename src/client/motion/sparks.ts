@@ -18,6 +18,7 @@
  * The .spark base class is defined in index.html (global) so styles apply
  * to body-appended nodes.
  */
+import { playSpark, panFromScreenX } from "../audio/sounds";
 
 type SparkColor = { bg: string; glow: string };
 
@@ -138,12 +139,22 @@ export function spawnSpark(x: number, y: number, options: SparkOptions = {}): vo
  * Burst spawn — 1 to 3 sparks at once, weighted toward 1-2. Makes a single
  * cursor emission feel like a real electrical spark rather than a single
  * pixel. Inherits cursor defaults.
+ *
+ * Also plays a *very subtle* tick sound on ~35% of bursts, panned to
+ * the cursor's screen X. Skipping most bursts keeps the audio texture
+ * sparse — typing reads as "occasional crackle" rather than a
+ * continuous click track. The pan keeps cursor sparks on the left
+ * (where the chat sits) panned slightly left.
  */
 export function burstSparks(x: number, y: number, dirX = 1): void {
   const count = 1
     + (Math.random() < 0.45 ? 1 : 0)
     + (Math.random() < 0.15 ? 1 : 0);
   for (let i = 0; i < count; i++) spawnSpark(x, y, { dirX });
+
+  if (Math.random() < 0.35 && typeof window !== "undefined") {
+    playSpark({ pan: panFromScreenX(x) });
+  }
 }
 
 // Boot-flash flares live in motion/flares.ts. Different particle type
