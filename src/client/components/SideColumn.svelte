@@ -40,21 +40,37 @@
 </aside>
 
 <style>
+  /*
+    Slide-in uses position: relative + left (animated) instead of
+    transform. transform — even translateX(0) — creates a stacking
+    context, which trapped child z-indexes inside .side and stopped
+    individual status items from being able to lift above the
+    .status-flash overlay (z 200). With position-based slide-in and
+    no explicit z-index on .side, the column has *no* stacking
+    context once visible, so a child's z-index propagates up to
+    root and a single flashing item can pop through the dim.
+
+    Opacity < 1 *does* create a stacking context, but that's only
+    during the initial slide-in animation; by the time the staggered
+    status reveal happens the column is at opacity 1 and the
+    stacking context dissolves.
+  */
   .side {
     border-left: 1px solid #114422;
     padding: 0.6rem 0.8rem;
     overflow-y: auto;
     background: #000;
+    position: relative;
+    left: 20px;
     opacity: 0;
-    transform: translateX(20px);
     transition:
       opacity 600ms ease,
-      transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+      left 600ms cubic-bezier(0.16, 1, 0.3, 1);
     min-height: 0;
   }
   .side.visible {
     opacity: 1;
-    transform: translateX(0);
+    left: 0;
   }
   h3 {
     color: #557755;
