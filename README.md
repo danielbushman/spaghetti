@@ -49,11 +49,23 @@ bun run start          # serves dist/client + /api/*
 
 Environment vars (all optional):
 
-| var          | default                  | what                                |
-| ------------ | ------------------------ | ----------------------------------- |
-| `PORT`       | `5173`                   | HTTP port                           |
-| `OLLAMA_HOST`| `http://127.0.0.1:11434` | upstream Ollama base URL            |
-| `DIST_DIR`   | `dist/client`            | where to serve static SPA from      |
+| var                       | default                            | what                                                     |
+| ------------------------- | ---------------------------------- | -------------------------------------------------------- |
+| `PORT`                    | `5173`                             | HTTP port                                                |
+| `OLLAMA_HOST`             | `http://127.0.0.1:11434`           | upstream Ollama base URL                                 |
+| `DIST_DIR`                | `dist/client`                      | where to serve static SPA from                           |
+| `SPAGHETTI_LOG_DIR`       | `~/.spaghetti/game-chat-histories` | where chat history JSONL files are written               |
+| `SPAGHETTI_LOG_DISABLED`  | unset                              | set to `1` to turn off chat history persistence entirely |
+
+## Chat history persistence
+
+Every browser session writes a JSONL file to
+`~/.spaghetti/game-chat-histories/YYYY-MM-DD_HH-MM-SS.chat-history.jsonl`.
+One event per line — `session_start`, `user_message`, `agent_message`
+(with model name + source: `stream` / `typed_in` / `checkin`),
+`system_message`, `scene_phase`, `pick_status` (with `trigger: "manual"`
+or `"auto"`), `boot_online`, `chat_failed`, `agent_silent`,
+`checkin_failed`, `checkin_dropped`. Always on, including dev runs.
 
 ### One server, two roles
 

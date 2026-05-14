@@ -27,6 +27,7 @@ import {
   thinkingPauseMs,
   wordBoundaryPauseMs,
 } from "../motion/typing";
+import { logEvent } from "../log";
 
 export type Role = "system" | "user" | "agent";
 
@@ -109,6 +110,7 @@ class ChatStore {
       new Message({ role: "user", visible: text, target: text, typing: false }),
     );
     this.history.push({ role: "user", content: text });
+    logEvent({ type: "user_message", content: text });
   }
 
   /** Type a system/log line in. Not recorded in LLM history. */
@@ -133,6 +135,11 @@ class ChatStore {
     if (recordHistory) {
       this.history.push({ role: "assistant", content: text });
     }
+    logEvent({
+      type: role === "agent" ? "agent_message" : "system_message",
+      content: text,
+      source: role === "agent" ? "typed_in" : "log",
+    });
   }
 
   /**
@@ -163,6 +170,7 @@ class ChatStore {
       m.role = "system";
       m.visible = `// chat failed: ${error}`;
       m.target = m.visible;
+      logEvent({ type: "chat_failed", error, model });
       return;
     }
 
@@ -171,9 +179,17 @@ class ChatStore {
       m.role = "system";
       m.visible = "// agent stayed silent";
       m.target = m.visible;
+      logEvent({ type: "agent_silent", model });
       return;
     }
     this.history.push({ role: "assistant", content: final });
+    logEvent({
+      type: "agent_message",
+      content: final,
+      model,
+      source: "stream",
+      hasAddendum: Boolean(systemAddendum),
+    });
   }
 
   /**
@@ -209,15 +225,18 @@ class ChatStore {
 
     if (error) {
       this.removeMessage(m.id);
+      logEvent({ type: "checkin_failed", error, model });
       return null;
     }
 
     const final = m.target.trim().replace(/^"+|"+$/g, "");
     if (!final || final.toLowerCase().startsWith("are you still")) {
       this.removeMessage(m.id);
+      logEvent({ type: "checkin_dropped", reason: !final ? "empty" : "echoed_opener", model });
       return null;
     }
     this.history.push({ role: "assistant", content: final });
+    logEvent({ type: "agent_message", content: final, model, source: "checkin" });
     return final;
   }
 

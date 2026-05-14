@@ -33,6 +33,7 @@
     FIX_ACKNOWLEDGE_ADDENDUM,
     AUTO_PICK_ADDENDUM,
   } from "./agent";
+  import { logEvent, sessionId } from "./log";
 
   const MODEL_KEY = "spaghetti.model";
 
@@ -135,6 +136,15 @@
   }
 
   async function runBoot(): Promise<void> {
+    // First event seals the session ID into the on-disk filename and
+    // gives the analyst something to grep for.
+    logEvent({
+      type: "session_start",
+      session_id: sessionId(),
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+      app_started_at: new Date().toISOString(),
+    });
+
     chat.setSystemPrompt(AWAKENING_SYSTEM_PROMPT);
     boot.phase = "cold";
     await sleep(600);
@@ -178,6 +188,11 @@
     await sleep(600);
 
     boot.phase = "online";
+    logEvent({
+      type: "boot_online",
+      model: selectedModel,
+      models_available: ollama.chatModels.length,
+    });
     await sleep(500);
 
     await chat.typeAgent("Are you still there?");
@@ -218,6 +233,7 @@
 
     clearAutoPick();
     scene.phase = "acting";
+    logEvent({ type: "scene_phase", phase: "acting", picked: id });
     telemetry.startFixing(id);
     clearSilence();
 
@@ -231,6 +247,7 @@
     await sleep(settleMs);
     telemetry.completeFix(id);
     scene.phase = "open";
+    logEvent({ type: "scene_phase", phase: "open", resolved: id });
     scheduleSilenceProbe(0);
   }
 
@@ -242,6 +259,7 @@
   async function onPickStatus(id: string): Promise<void> {
     const it = telemetry.statusItems.find((x) => x.id === id);
     if (!it) return;
+    logEvent({ type: "pick_status", id, trigger: "manual" });
     await runFixFlow(id, FIX_ACKNOWLEDGE_ADDENDUM(id, it.label), 2200);
   }
 
@@ -266,6 +284,7 @@
       (x) => x.id === AUTO_PICK_DEFAULT_ID && x.state === "red",
     );
     if (!target) return;
+    logEvent({ type: "pick_status", id: target.id, trigger: "auto" });
     await runFixFlow(
       target.id,
       AUTO_PICK_ADDENDUM(target.id, target.label),
@@ -325,6 +344,7 @@
     let addendum: string | undefined;
     if (scene.phase === "awakening") {
       scene.phase = "triage_intro";
+      logEvent({ type: "scene_phase", phase: "triage_intro" });
       telemetry.start();
       addendum = TRIAGE_ADDENDUM;
     }
@@ -337,6 +357,7 @@
       if (scene.phase === "triage_intro") {
         telemetry.revealStatus();
         scene.phase = "triage";
+        logEvent({ type: "scene_phase", phase: "triage" });
         // Start the auto-pick countdown the moment status items are
         // revealed. Cancelled by any subsequent pick (manual or auto).
         scheduleAutoPick();

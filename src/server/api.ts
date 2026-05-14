@@ -9,11 +9,40 @@
  * stops on `done: true`.
  */
 import { OLLAMA_BASE_URL } from "./config";
+import { appendChatLog } from "./chat-log";
 
 export async function handleApi(req: Request, url: URL): Promise<Response> {
   if (url.pathname === "/api/models" && req.method === "GET") return listModels();
   if (url.pathname === "/api/chat" && req.method === "POST") return chatStream(req);
+  if (url.pathname === "/api/log" && req.method === "POST") return logRoute(req);
   return json({ error: "not found" }, 404);
+}
+
+/**
+ * Append a single chat event to the session's history file.
+ *
+ * Always returns 204 — logging must never break the game, so server-side
+ * errors are swallowed and logged to stderr. The client doesn't care
+ * about the response either way.
+ */
+async function logRoute(req: Request): Promise<Response> {
+  try {
+    const body = (await req.json()) as {
+      sessionId?: unknown;
+      event?: unknown;
+    };
+    if (typeof body.sessionId !== "string" || body.sessionId.length === 0) {
+      return new Response(null, { status: 400 });
+    }
+    if (body.event === null || typeof body.event !== "object") {
+      return new Response(null, { status: 400 });
+    }
+    await appendChatLog(body.sessionId, body.event as Record<string, unknown>);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[chat-log] failed:", msg);
+  }
+  return new Response(null, { status: 204 });
 }
 
 async function listModels(): Promise<Response> {
