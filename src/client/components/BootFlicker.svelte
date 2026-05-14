@@ -112,6 +112,14 @@
 
 <div class="flicker" style="animation-duration: {totalMs}ms"></div>
 <div class="electric" style="animation-duration: {totalMs}ms"></div>
+<!--
+  Afterimage. The word "spaghetti" punches in full-screen at the moment
+  of THE STRIKE (73% of the timeline), held bright through the electric
+  afterglow, then shifts colour from white-mint toward terminal green
+  as it diffuses and fades by 100%. Like the burn-in your eye holds
+  after a flash bulb.
+-->
+<div class="afterimage" style="animation-duration: {totalMs}ms" aria-hidden="true">spaghetti</div>
 
 <style>
   .flicker {
@@ -254,8 +262,89 @@
     100%       { opacity: 0.00; }
   }
 
+  /*
+    Spaghetti afterimage. Full-screen centred title that punches in at
+    the strike moment and diffuses + colour-shifts toward terminal green
+    as it fades. Layered above the scrim/electric (z 55) but below the
+    spark/flare particles (z 100) so the flares can spray over the text.
+
+    The colour transition white → mint → terminal green is part of the
+    visual story: the flash is electric/cool, and as the eyes adjust
+    the after-image settles into the room's actual light (terminal green).
+
+    Letter-spacing grows over the fade — the after-image diffuses as it
+    loses intensity, the way burn-in does.
+  */
+  .afterimage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 55;
+    font-family: inherit;
+    font-size: clamp(4rem, 16vw, 18rem);
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    color: #ffffff;
+    opacity: 0;
+    user-select: none;
+    animation: spaghetti-afterimage 13000ms forwards;
+    will-change: opacity, letter-spacing, color, text-shadow;
+  }
+
+  @keyframes spaghetti-afterimage {
+    /* Quiet through pre-strike, warm-up, dim hold, failed near-strikes. */
+    0%, 72.95% { opacity: 0; letter-spacing: 0.05em; color: #ffffff; text-shadow: none; }
+
+    /* THE STRIKE — snap to bright white-mint with a halo glow. */
+    73% {
+      opacity: 0.92;
+      letter-spacing: 0.05em;
+      color: #ffffff;
+      text-shadow: 0 0 80px rgba(216, 255, 240, 0.9),
+                   0 0 160px rgba(136, 230, 200, 0.55);
+    }
+
+    /* Held through the electric afterglow (matches arc-flash 73-78%). */
+    77% {
+      opacity: 0.82;
+      letter-spacing: 0.06em;
+      color: #f5fff8;
+      text-shadow: 0 0 60px rgba(176, 238, 216, 0.65);
+    }
+
+    /* Colour shifts toward mint as room "settles". */
+    82% {
+      opacity: 0.50;
+      letter-spacing: 0.08em;
+      color: #b0eed8;
+      text-shadow: 0 0 40px rgba(102, 255, 153, 0.45);
+    }
+
+    /* Fading and diffusing into terminal green. */
+    90% {
+      opacity: 0.22;
+      letter-spacing: 0.12em;
+      color: #66ff99;
+      text-shadow: 0 0 22px rgba(51, 255, 102, 0.3);
+    }
+
+    /* A trace before clearing. */
+    96% {
+      opacity: 0.06;
+      letter-spacing: 0.15em;
+      color: #33ff66;
+      text-shadow: none;
+    }
+
+    /* Cleared. */
+    100% { opacity: 0; letter-spacing: 0.16em; color: #33ff66; text-shadow: none; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .flicker, .electric {
+    .flicker, .electric, .afterimage {
       animation: none;
       opacity: 0;
     }
