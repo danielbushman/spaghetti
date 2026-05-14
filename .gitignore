@@ -43,3 +43,9 @@ spaghetti.state.json
 # CrewChief runtime state
 .crewchief/
 .crewchief-meta.json
+
+# Web build artifacts
+node_modules/
+dist/
+bun.lock
+bun.lockb

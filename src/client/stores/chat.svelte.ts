@@ -1,0 +1,267 @@
+/**
+ * Chat state + typewriter pump.
+ *
+ * Each Message has BOTH a `visible` (what the screen shows) and a `target`
+ * (what the agent intends to say, which may still be growing during a
+ * stream). A small async loop walks `visible` toward `target` at typewriter
+ * cadence (see motion/typing.ts), so the screen reads as the agent thinking
+ * rather than as a printer.
+ *
+ * `history` is what we send to Ollama. It is *separate* from `messages`:
+ * system-log lines ("// ollama: ok") never go to the LLM.
+ */
+import { charDelayMs } from "../motion/typing";
+
+export type Role = "system" | "user" | "agent";
+
+export type Message = {
+  id: number;
+  role: Role;
+  visible: string;
+  target: string;
+  typing: boolean;
+  ts: number;
+};
+
+type HistoryEntry = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+let nextId = 1;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+class ChatStore {
+  messages = $state<Message[]>([]);
+  history = $state<HistoryEntry[]>([]);
+
+  setSystemPrompt(p: string): void {
+    this.history = [{ role: "system", content: p }];
+  }
+
+  /** User message lands instantly — no typewriter for what they themselves wrote. */
+  pushUserInstant(text: string): void {
+    this.messages.push({
+      id: nextId++,
+      role: "user",
+      visible: text,
+      target: text,
+      typing: false,
+      ts: Date.now(),
+    });
+    this.history.push({ role: "user", content: text });
+  }
+
+  /** Type a system/log line in. Not recorded in LLM history. */
+  typeSystem(text: string): Promise<void> {
+    return this.typeIn("system", text, /* recordHistory */ false);
+  }
+
+  /** Type an out-of-band agent line in (e.g. the hardcoded opener). */
+  typeAgent(text: string): Promise<void> {
+    return this.typeIn("agent", text, /* recordHistory */ true);
+  }
+
+  private async typeIn(role: Role, text: string, recordHistory: boolean): Promise<void> {
+    const m: Message = {
+      id: nextId++,
+      role,
+      visible: "",
+      target: text,
+      typing: true,
+      ts: Date.now(),
+    };
+    this.messages.push(m);
+    await this.pump(m);
+    m.typing = false;
+    if (recordHistory) {
+      this.history.push({ role: "assistant", content: text });
+    }
+  }
+
+  /**
+   * Stream a response from /api/chat using current history. Tokens land in
+   * `target` as they arrive; the typewriter pump drains `target` → `visible`
+   * at typing cadence. Returns when both the stream and the pump are done.
+   */
+  async streamAgentTurn(model: string, options?: Record<string, unknown>): Promise<void> {
+    const m: Message = {
+      id: nextId++,
+      role: "agent",
+      visible: "",
+      target: "",
+      typing: true,
+      ts: Date.now(),
+    };
+    this.messages.push(m);
+
+    const { error } = await this.runStreamingInto(m, this.history, model, options);
+    m.typing = false;
+
+    if (error) {
+      m.role = "system";
+      m.visible = `// chat failed: ${error}`;
+      m.target = m.visible;
+      return;
+    }
+
+    const final = m.target.trim();
+    if (!final) {
+      m.role = "system";
+      m.visible = "// agent stayed silent";
+      m.target = m.visible;
+      return;
+    }
+    this.history.push({ role: "assistant", content: final });
+  }
+
+  /**
+   * Like `streamAgentTurn` but uses a temporary system instruction appended
+   * to the history (for the silence check-in). Returns the produced text or
+   * null if the model returned nothing usable.
+   *
+   * Removes the message bubble entirely on failure so a dropped check-in
+   * leaves no trace.
+   */
+  async streamCheckin(
+    model: string,
+    instruction: string,
+  ): Promise<string | null> {
+    const m: Message = {
+      id: nextId++,
+      role: "agent",
+      visible: "",
+      target: "",
+      typing: true,
+      ts: Date.now(),
+    };
+    this.messages.push(m);
+
+    const checkinHistory: HistoryEntry[] = [
+      ...this.history,
+      { role: "system", content: instruction },
+    ];
+
+    const { error } = await this.runStreamingInto(m, checkinHistory, model, {
+      num_predict: 60,
+      temperature: 0.95,
+      top_p: 0.92,
+      repeat_penalty: 1.25,
+      repeat_last_n: 256,
+      presence_penalty: 0.6,
+      frequency_penalty: 0.5,
+    });
+
+    if (error) {
+      this.removeMessage(m.id);
+      return null;
+    }
+
+    let final = m.target.trim().replace(/^"+|"+$/g, "");
+    if (!final || final.toLowerCase().startsWith("are you still")) {
+      this.removeMessage(m.id);
+      return null;
+    }
+    m.typing = false;
+    this.history.push({ role: "assistant", content: final });
+    return final;
+  }
+
+  /**
+   * Two-task runner: a receive task fills `m.target` from the stream, a
+   * display task drains `target` → `visible` at typing cadence. Both finish
+   * before this resolves.
+   */
+  private async runStreamingInto(
+    m: Message,
+    history: HistoryEntry[],
+    model: string,
+    options?: Record<string, unknown>,
+  ): Promise<{ error: string | null }> {
+    let receiveDone = false;
+    let receiveError: string | null = null;
+
+    const receive = async (): Promise<void> => {
+      try {
+        const r = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            model,
+            messages: history,
+            options: options ?? { num_predict: 200, temperature: 0.85 },
+          }),
+        });
+        if (!r.ok || !r.body) {
+          const text = await r.text().catch(() => "");
+          receiveError = `${r.status} ${text || r.statusText}`.trim();
+          return;
+        }
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let tail = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          tail += decoder.decode(value, { stream: true });
+          const lines = tail.split("\n");
+          tail = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const data = JSON.parse(line) as {
+                message?: { content?: string };
+                done?: boolean;
+              };
+              const tok = data.message?.content ?? "";
+              if (tok) m.target += tok;
+              if (data.done) return;
+            } catch {
+              // Non-JSON line — skip.
+            }
+          }
+        }
+      } catch (e) {
+        receiveError = e instanceof Error ? e.message : String(e);
+      } finally {
+        receiveDone = true;
+      }
+    };
+
+    const display = async (): Promise<void> => {
+      while (true) {
+        if (m.visible.length < m.target.length) {
+          const ch = m.target[m.visible.length];
+          m.visible = m.target.slice(0, m.visible.length + 1);
+          await sleep(charDelayMs(ch));
+        } else if (receiveDone) {
+          return;
+        } else {
+          await sleep(15);
+        }
+      }
+    };
+
+    await Promise.all([receive(), display()]);
+    return { error: receiveError };
+  }
+
+  /** Drain a fully-known string into `visible` at typewriter cadence. */
+  private async pump(m: Message): Promise<void> {
+    while (m.visible.length < m.target.length) {
+      const ch = m.target[m.visible.length];
+      m.visible = m.target.slice(0, m.visible.length + 1);
+      await sleep(charDelayMs(ch));
+    }
+  }
+
+  private removeMessage(id: number): void {
+    const i = this.messages.findIndex((x) => x.id === id);
+    if (i >= 0) this.messages.splice(i, 1);
+  }
+}
+
+export const chat = new ChatStore();

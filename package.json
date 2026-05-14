@@ -1,0 +1,24 @@
+{
+  "name": "spaghetti-web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Browser version of spaghetti — Bun server + Svelte + d3.",
+  "scripts": {
+    "dev": "bun run src/server/dev.ts",
+    "build": "NODE_ENV=production bun run src/build.ts",
+    "start": "NODE_ENV=production bun run src/server/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "svelte": "^5.0.0",
+    "d3-ease": "^3.0.1",
+    "d3-interpolate": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/d3-ease": "^3.0.2",
+    "@types/d3-interpolate": "^3.0.4",
+    "typescript": "^5.5.0"
+  }
+}
