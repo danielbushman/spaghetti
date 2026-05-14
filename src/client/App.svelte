@@ -17,7 +17,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Header from "./components/Header.svelte";
-  import Banner from "./components/Banner.svelte";
   import BootFlicker from "./components/BootFlicker.svelte";
   import ChatLog from "./components/ChatLog.svelte";
   import Input from "./components/Input.svelte";
@@ -300,7 +299,6 @@
 <BootFlicker />
 <div class="screen">
   <Header bind:selectedModel {busy} />
-  <Banner />
   <main class="main">
     <ChatLog />
     <Input booted={boot.online} {busy} {onSend} />
@@ -312,10 +310,9 @@
   .screen {
     display: grid;
     grid-template-columns: 1fr 22rem;
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto 1fr;
     grid-template-areas:
       "header header"
-      "banner side"
       "main   side";
     height: 100vh;
     gap: 0.4rem;
@@ -324,7 +321,6 @@
     box-sizing: border-box;
   }
   .screen > :global(header) { grid-area: header; }
-  .screen > :global(pre.banner) { grid-area: banner; }
   .main {
     grid-area: main;
     display: grid;
@@ -339,10 +335,9 @@
       grid-template-columns: 1fr;
       grid-template-areas:
         "header"
-        "banner"
         "main"
         "side";
-      grid-template-rows: auto auto 1fr auto;
+      grid-template-rows: auto 1fr auto;
     }
     .screen > :global(aside.side) { max-height: 40vh; }
   }
