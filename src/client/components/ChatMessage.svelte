@@ -13,12 +13,22 @@
   import { onMount } from "svelte";
   import { overshoot, smooth } from "../motion/easings";
   import { burstSparks } from "../motion/sparks";
+  import ThinkingIndicator from "./ThinkingIndicator.svelte";
 
   let { message }: { message: Message } = $props();
 
   let el: HTMLDivElement | undefined = $state();
   let cursorEl: HTMLSpanElement | undefined = $state();
   let cursorOn = $state(true);
+
+  // The agent message is created with visible="" the moment a turn starts,
+  // before the first token streams back. During that gap we want a visible
+  // "thinking" signal *where the response will appear*, not just in the
+  // header. Once the first character lands, we switch to the typing
+  // cursor + sparks as today.
+  const isWaitingForFirstToken = $derived(
+    message.typing && message.role === "agent" && message.visible.length === 0,
+  );
 
   // Entry motion (one-shot). The component never replays this on prop change.
   onMount(() => {
@@ -106,7 +116,7 @@
 <div class="msg msg-{message.role}" bind:this={el} style="opacity: 0;"
   ><span class="prefix">{prefix}</span><span class="text"
   >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}<span class="char">{ch}</span>{/each}{:else}{message.visible}{/if}</span
-  >{#if message.typing}<span bind:this={cursorEl} class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
+  >{#if isWaitingForFirstToken}<ThinkingIndicator active={true} />{:else if message.typing}<span bind:this={cursorEl} class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
 
 <style>
   .msg {

@@ -3,18 +3,17 @@
  *
  * Spawns short-lived green/yellow specks at a given screen position. Each
  * spark is a body-appended <div> animated via the Web Animation API along
- * a parabolic ballistic path — real `v₀·t + ½·g·t²` physics, fixed
- * gravity, randomized initial velocity and angle — then fades out on an
- * ease-in opacity curve.
+ * a parabolic ballistic path — real `v₀·t + ½·g·t²` physics, randomized
+ * initial velocity and angle — then fades out on an ease-in opacity curve.
  *
- * Why body-append and not Svelte components: each spark is a fire-and-
- * forget DOM node with ~500ms of life. Reactive components would re-render
- * on every state change and add diff overhead. WAAPI gives us GPU-accelerated
- * transforms with zero per-frame JS work after spawn.
+ * Two callers:
+ *   - cursor sparks while a message is typing (narrow up-right fan, small)
+ *   - flash bursts during boot (omnidirectional, larger, slower gravity)
  *
- * Why parabolic physics and not d3-shape: we don't need a smoothed curve
- * through control points, we need projectile motion. Two velocity
- * components + gravity gives a real arc for free.
+ * Each spark is a fire-and-forget body-appended DOM node with ~500-1000ms
+ * of life. Reactive Svelte components would re-render on parent state
+ * changes and add diff overhead; WAAPI gives GPU-accelerated transforms
+ * with zero per-frame JS work after spawn.
  *
  * The .spark base class is defined in index.html (global) so styles apply
  * to body-appended nodes.
@@ -30,17 +29,56 @@ const COLORS: SparkColor[] = [
 ];
 
 const KEYFRAME_STEPS = 12;
-const BASE_ANGLE = -Math.PI / 3;        // ~60° up from horizontal, biased right
-const ANGLE_SPREAD = Math.PI * 0.75;    // wide fan
-const GRAVITY = 320;                    // px/s² — punchy arc
+
+/** Tuning knobs for a single spark. Defaults match the cursor emitter. */
+export type SparkOptions = {
+  /** Base trajectory angle in radians. -π/2 = up, 0 = right, π/2 = down. */
+  baseAngle?: number;
+  /** Angle fan width in radians. 2π = omnidirectional. */
+  angleSpread?: number;
+  /** Initial speed range (px/s). */
+  speedMin?: number;
+  speedMax?: number;
+  /** Lifetime range (ms). */
+  lifetimeMin?: number;
+  lifetimeMax?: number;
+  /** Gravity (px/s²). Lower = floatier. */
+  gravity?: number;
+  /** Spark size range (px). */
+  sizeMin?: number;
+  sizeMax?: number;
+  /** Horizontal direction multiplier: 1 = right (default), -1 = left. */
+  dirX?: number;
+  /** Accent-color probability [0,1]. Default 0.15 (yellow/cyan rare). */
+  accentChance?: number;
+};
+
+const DEFAULTS: Required<SparkOptions> = {
+  baseAngle: -Math.PI / 3,
+  angleSpread: Math.PI * 0.75,
+  speedMin: 50,
+  speedMax: 140,
+  lifetimeMin: 380,
+  lifetimeMax: 700,
+  gravity: 320,
+  sizeMin: 1,
+  sizeMax: 3,
+  dirX: 1,
+  accentChance: 0.15,
+};
 
 /**
- * Spawn a single spark at screen coordinates (x, y). Optionally biases the
- * trajectory horizontally with `dirX` ∈ [-1, 1] — +1 fires right (default),
- * -1 fires left. Useful if the cursor is at the end of a right-to-left run.
+ * Spawn a single spark at viewport coordinates (x, y).
+ *
+ * All parameters are overridable via options. The defaults give the cursor-
+ * spark behavior (narrow up-right fan, small green sparks); pass an options
+ * object with `angleSpread: 2π` and bigger sizes/speeds for an omnidirectional
+ * burst.
  */
-export function spawnSpark(x: number, y: number, dirX = 1): void {
+export function spawnSpark(x: number, y: number, options: SparkOptions = {}): void {
   if (typeof document === "undefined") return;
+
+  const o = { ...DEFAULTS, ...options };
 
   const div = document.createElement("div");
   div.className = "spark";
@@ -51,12 +89,12 @@ export function spawnSpark(x: number, y: number, dirX = 1): void {
   div.style.left = `${x + jx}px`;
   div.style.top  = `${y + jy}px`;
 
-  const size = 1 + Math.random() * 2;
+  const size = o.sizeMin + Math.random() * (o.sizeMax - o.sizeMin);
   div.style.width  = `${size}px`;
   div.style.height = `${size}px`;
 
-  // 85% terminal green/mint, 15% accent (yellow/cyan).
-  const c = Math.random() < 0.85
+  // Mostly green/mint; occasional yellow/cyan accent.
+  const c = Math.random() < (1 - o.accentChance)
     ? COLORS[Math.floor(Math.random() * 2)]
     : COLORS[2 + Math.floor(Math.random() * 2)];
   div.style.background = c.bg;
@@ -64,26 +102,24 @@ export function spawnSpark(x: number, y: number, dirX = 1): void {
 
   document.body.appendChild(div);
 
-  // Initial velocity: random angle in a fan around BASE_ANGLE, random speed.
-  const angle = BASE_ANGLE + (Math.random() - 0.5) * ANGLE_SPREAD;
-  const speed = 50 + Math.random() * 90;        // px/s
-  const lifetime = 380 + Math.random() * 320;   // ms
+  const angle = o.baseAngle + (Math.random() - 0.5) * o.angleSpread;
+  const speed = o.speedMin + Math.random() * (o.speedMax - o.speedMin);
+  const lifetime = o.lifetimeMin + Math.random() * (o.lifetimeMax - o.lifetimeMin);
 
-  const vx = Math.cos(angle) * speed * (dirX >= 0 ? 1 : -1);
-  const vy0 = Math.sin(angle) * speed;           // negative = upward
+  const vx = Math.cos(angle) * speed * (o.dirX >= 0 ? 1 : -1);
+  const vy0 = Math.sin(angle) * speed;            // negative = upward
 
-  // Generate keyframes by sampling the projectile path at fixed intervals.
-  // The arc is computed in pixel units; gravity in px/s² gives a satisfying
-  // downward pull over the spark's lifetime.
+  // Sample the projectile path at KEYFRAME_STEPS+1 points and hand off to
+  // WAAPI. After this call the browser owns the timeline.
   const keyframes: Keyframe[] = [];
   const lifeSec = lifetime / 1000;
   for (let i = 0; i <= KEYFRAME_STEPS; i++) {
     const u = i / KEYFRAME_STEPS;
     const t = lifeSec * u;
     const dx = vx * t;
-    const dy = vy0 * t + 0.5 * GRAVITY * t * t;
-    // Opacity: 1 → 0 with ease-in-cubic so the spark stays visible for most
-    // of its life then drops sharply at the end. Reads as "burning out".
+    const dy = vy0 * t + 0.5 * o.gravity * t * t;
+    // Opacity 1 → 0 with ease-in-cubic — bright most of life, sharp drop
+    // at the end. Reads as "burning out".
     const opacity = i === 0 ? 1 : Math.max(0, 1 - u * u * u);
     keyframes.push({ transform: `translate(${dx}px, ${dy}px)`, opacity });
   }
@@ -99,13 +135,40 @@ export function spawnSpark(x: number, y: number, dirX = 1): void {
 }
 
 /**
- * Burst spawn — 1 to 3 sparks at once, weighted toward 1-2. Use this to make
- * a single emission feel like a real electrical spark rather than a single
- * pixel.
+ * Burst spawn — 1 to 3 sparks at once, weighted toward 1-2. Makes a single
+ * cursor emission feel like a real electrical spark rather than a single
+ * pixel. Inherits cursor defaults.
  */
 export function burstSparks(x: number, y: number, dirX = 1): void {
   const count = 1
     + (Math.random() < 0.45 ? 1 : 0)
     + (Math.random() < 0.15 ? 1 : 0);
-  for (let i = 0; i < count; i++) spawnSpark(x, y, dirX);
+  for (let i = 0; i < count; i++) spawnSpark(x, y, { dirX });
+}
+
+/**
+ * Big radial burst from a single origin point — sparks scatter in all
+ * directions, larger and faster than cursor sparks, with weaker gravity
+ * so they hang in the air briefly before falling. Used for the boot-
+ * flicker electric flashes, where each flash should *feel* like it
+ * physically expelled a shower of sparks.
+ *
+ * The accent-color rate is also boosted — flash bursts read better with a
+ * mix of yellow/cyan among the green, like a real electrical discharge.
+ */
+export function flashBurst(x: number, y: number, count: number): void {
+  for (let i = 0; i < count; i++) {
+    spawnSpark(x, y, {
+      baseAngle: -Math.PI / 2,         // up
+      angleSpread: Math.PI * 2,        // full 360°
+      speedMin: 120,
+      speedMax: 340,
+      lifetimeMin: 550,
+      lifetimeMax: 1200,
+      gravity: 220,                    // weaker; sparks linger
+      sizeMin: 1.5,
+      sizeMax: 4,
+      accentChance: 0.30,              // more colour variety
+    });
+  }
 }

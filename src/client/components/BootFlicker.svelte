@@ -44,7 +44,44 @@
   at opacity 0. pointer-events: none on both.
 -->
 <script lang="ts">
-  // No props. Both animations are CSS-driven and one-shot.
+  import { onMount } from "svelte";
+  import { flashBurst } from "../motion/sparks";
+
+  /**
+   * Spark bursts synced to the CSS flash keyframes.
+   *
+   * The base scrim + electric overlay animations live in @keyframes below.
+   * JS schedules a particle burst at the same instant each electric flash
+   * fires, so the flash visibly "expels" a shower of sparks.
+   *
+   * Times are derived from the 13000ms animation duration:
+   *   FLASH 1 at 17%  →  2210ms,  smallish burst   (18 sparks)
+   *   FLASH 2 at 50%  →  6500ms,  medium burst     (30 sparks)
+   *   FLASH 3 at 73%  →  9490ms,  THE STRIKE       (60 sparks)
+   *
+   * Sparks originate from screen-center (where the radial gradient peaks)
+   * and scatter omnidirectionally with weaker-than-cursor gravity, so they
+   * linger long enough to read as actual debris from the flash.
+   */
+  const BURSTS: Array<{ delay: number; count: number }> = [
+    { delay: 2_210, count: 18 },
+    { delay: 6_500, count: 30 },
+    { delay: 9_490, count: 60 },
+  ];
+
+  onMount(() => {
+    const handles: ReturnType<typeof setTimeout>[] = [];
+    for (const { delay, count } of BURSTS) {
+      handles.push(setTimeout(() => {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        flashBurst(cx, cy, count);
+      }, delay));
+    }
+    return () => {
+      for (const h of handles) clearTimeout(h);
+    };
+  });
 </script>
 
 <div class="flicker"></div>
