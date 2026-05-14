@@ -103,10 +103,11 @@
     };
   });
 
+  // Agent has a visible name; user messages have no prefix — they're
+  // distinguished by an indent that aligns their text with where the
+  // agent's text starts, plus a lighter color.
   let prefix = $derived(
-    message.role === "user"  ? "you> "  :
-    message.role === "agent" ? "agent> " :
-                                ""
+    message.role === "agent" ? "meatball> " : ""
   );
 
   /**
@@ -150,7 +151,7 @@
   span. The '?' branches do the wrapping.
 -->
 <div class="msg msg-{message.role}" bind:this={el} style="opacity: 0;"
-  ><span class="prefix">{prefix}</span><span class="text"
+  >{#if prefix}<span class="prefix">{prefix}</span>{/if}<span class="text"
   >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}{#if ch === "?"}<span class="char question" style:--i={i}><span class="snap">{ch}</span></span>{:else}<span class="char">{ch}</span>{/if}{/each}{:else}{#each doneParts as part, i (i)}{#if part === "?"}<span class="question" style:--i={i}><span class="snap">?</span></span>{:else}{part}{/if}{/each}{/if}</span
   >{#if isWaitingForFirstToken}<ThinkingIndicator active={true} />{:else if message.typing}<span bind:this={cursorEl} class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
 
@@ -163,8 +164,22 @@
     color: #557755;
     font-style: italic;
   }
-  .msg-user .prefix { color: #66ffaa; font-weight: bold; }
-  .msg-user .text   { color: #cceedd; }
+  /*
+    User messages have no prefix. They're indented so their text starts
+    at the same column where the agent's text starts (10ch = the width
+    of "meatball> " in the monospace font). Reads as a script/transcript
+    alignment. Lighter mint color (vs agent's saturated green) is the
+    second cue distinguishing speaker.
+
+    A bit more vertical breathing room than agent messages so each
+    operator turn sits as its own beat in the conversation.
+  */
+  .msg.msg-user {
+    margin: 0.5rem 0.3rem 0.25rem 10ch;
+    color: #cceedd;
+  }
+  .msg-user .text { color: inherit; }
+
   .msg-agent .prefix { color: #33ff66; font-weight: bold; }
   .msg-agent .text   { color: #33ff66; }
   /*
