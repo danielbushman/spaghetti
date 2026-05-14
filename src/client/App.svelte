@@ -238,7 +238,10 @@
     work.start();
     await speedSleep(500);
 
-    await chat.typeAgent("Are you still there?");
+    // Buddy-after-an-accident phrasing — subtly hints that the heart
+    // of the game is about being alive. Same opener spot, different
+    // tone than the old "Are you still there?".
+    await chat.typeAgent("Are you alive?");
     scheduleSilenceProbe(0);
   }
 

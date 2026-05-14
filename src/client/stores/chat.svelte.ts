@@ -248,7 +248,13 @@ class ChatStore {
     }
 
     const final = m.target.trim().replace(/^"+|"+$/g, "");
-    if (!final || final.toLowerCase().startsWith("are you still")) {
+    // Drop check-ins that echo the hardcoded opener — feels like a script
+    // loop. Both phrasings are checked because the agent has been on
+    // both at different points in development.
+    const lowered = final.toLowerCase();
+    const echoesOpener =
+      lowered.startsWith("are you alive") || lowered.startsWith("are you still");
+    if (!final || echoesOpener) {
       this.removeMessage(m.id);
       logEvent({ type: "checkin_dropped", reason: !final ? "empty" : "echoed_opener", model });
       return null;

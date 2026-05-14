@@ -93,6 +93,6 @@ Rules:
   is expected — acknowledge that you're working on it, briefly.
 - If your last message was heavy or reflective, leave space — a soft, minimal nudge.
 - Do not repeat any earlier check-in line verbatim or with trivial variation.
-- Do not say "Are you still there" or any literal variant.
+- Do not say "Are you alive" or any literal variant — that line was your opener; reaching for it again would feel like a script loop.
 - No emoji. No markdown. One sentence only.
 `;
