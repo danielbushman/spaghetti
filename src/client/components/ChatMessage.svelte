@@ -58,8 +58,19 @@
   );
 </script>
 
+<!--
+  Each character lives in its own <span> so a CSS animation can fire when it
+  mounts — giving the leading edge of typed text a soft "materialize" rather
+  than a hard pop. The compound key (`${i}-${ch}`) ensures spans only mount
+  on first arrival of a position; mutating a character at an existing index
+  (e.g. the system→error transformation) updates content without re-firing
+  the animation, but if the whole message swaps roles we'd want a remount —
+  in practice the error path also rewrites the index sequence, so keys
+  change and animations replay cleanly.
+-->
 <div class="msg msg-{message.role}" bind:this={el} style="opacity: 0;"
-  ><span class="prefix">{prefix}</span><span class="text">{message.visible}</span
+  ><span class="prefix">{prefix}</span><span class="text"
+  >{#each [...message.visible] as ch, i (`${i}-${ch}`)}<span class="char">{ch}</span>{/each}</span
   >{#if message.typing}<span class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
 
 <style>
@@ -75,6 +86,22 @@
   .msg-user .text   { color: #cceedd; }
   .msg-agent .prefix { color: #33ff66; font-weight: bold; }
   .msg-agent .text   { color: #33ff66; }
+  /*
+    Per-character materialize. Opacity-only so the animation works on inline
+    elements (transforms don't apply to non-block boxes) and so word wrapping
+    is unaffected — the chars stay in normal inline flow. The expo-out curve
+    snaps the char to visible quickly, then settles.
+  */
+  .char {
+    animation: char-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes char-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .char { animation: none; }
+  }
   .cursor {
     color: #33ff66;
     opacity: 0;

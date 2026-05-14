@@ -20,7 +20,12 @@
  *   where `message.typing = false` looked correct in state but the cursor
  *   stayed in the DOM forever.
  */
-import { adaptiveCharDelayMs, charDelayMs } from "../motion/typing";
+import {
+  adaptiveCharDelayMs,
+  charDelayMs,
+  rhythmModulator,
+  wordBoundaryPauseMs,
+} from "../motion/typing";
 
 export type Role = "system" | "user" | "agent";
 
@@ -267,16 +272,35 @@ class ChatStore {
       }
     };
 
-    // Display: drain target → visible at typewriter cadence, but accelerate
-    // when the producer (Ollama) runs ahead. Keeps the rhythm on slow models,
-    // avoids a perceptible lag on fast ones.
+    // Display: drain target → visible at typewriter cadence.
+    //
+    // Four signals compose the per-char delay:
+    //   1. `adaptiveCharDelayMs` — base shape scaled by buffer pressure.
+    //      When Ollama runs ahead, the floor drops so we don't perceptibly
+    //      lag the model.
+    //   2. `rhythmModulator` — slow sine wave around 1.0; gives the cadence
+    //      natural ebb and flow without changing the average.
+    //   3. `wordBoundaryPauseMs` — added beat after a word ends.
+    //   4. Backlog gate — when the buffer is large (> 20 chars), we're in
+    //      catch-up mode; skip the breath and word-end beats so the flush
+    //      stays fast.
     const display = async (): Promise<void> => {
+      let prevCh: string | null = null;
       while (true) {
-        if (m.visible.length < m.target.length) {
+        const backlog = m.target.length - m.visible.length;
+        if (backlog > 0) {
           const ch = m.target[m.visible.length];
           m.visible = m.target.slice(0, m.visible.length + 1);
-          const backlog = m.target.length - m.visible.length;
-          await sleep(adaptiveCharDelayMs(ch, backlog));
+          const remaining = backlog - 1;
+          const base = adaptiveCharDelayMs(ch, remaining);
+          if (remaining > 20) {
+            await sleep(base); // fast flush — skip breath / boundary
+          } else {
+            const breath = rhythmModulator(performance.now());
+            const boundary = wordBoundaryPauseMs(ch, prevCh);
+            await sleep(base * breath + boundary);
+          }
+          prevCh = ch;
         } else if (receiveDone) {
           return;
         } else {

@@ -23,7 +23,12 @@ import {
   cubicBezier,
   catmullRom,
 } from "../src/client/motion/arcs";
-import { adaptiveCharDelayMs, charDelayMs } from "../src/client/motion/typing";
+import {
+  adaptiveCharDelayMs,
+  charDelayMs,
+  rhythmModulator,
+  wordBoundaryPauseMs,
+} from "../src/client/motion/typing";
 
 describe("easings", () => {
   test("all return 0 at t=0 and 1 at t=1", () => {
@@ -138,8 +143,7 @@ describe("cubicBezier", () => {
 
 describe("typewriter cadence", () => {
   test("base delay is within documented bands", () => {
-    // Sample many values to average out the randomness floor.
-    const buckets = (ch: string, n = 400) => {
+    const buckets = (ch: string, n = 800) => {
       let min = Infinity;
       let max = -Infinity;
       for (let i = 0; i < n; i++) {
@@ -149,21 +153,18 @@ describe("typewriter cadence", () => {
       }
       return { min, max };
     };
-    // Letters: 7..17 base, plus rare hitch up to 90. Floor must stay tight.
-    const letter = buckets("a", 800);
-    expect(letter.min).toBeGreaterThanOrEqual(7);
-    expect(letter.min).toBeLessThanOrEqual(20);
+    // Letters: 12-26 base, plus rare hitch (50-130). Floor stays tight.
+    const letter = buckets("a", 2000);
+    expect(letter.min).toBeGreaterThanOrEqual(12);
+    expect(letter.min).toBeLessThanOrEqual(25);
     // Sentence terminators are clearly slower than letters.
     const sentence = buckets(".");
-    expect(sentence.min).toBeGreaterThanOrEqual(130);
-    expect(sentence.max).toBeLessThanOrEqual(225);
+    expect(sentence.min).toBeGreaterThanOrEqual(200);
+    expect(sentence.max).toBeLessThanOrEqual(330);
   });
 
   test("adaptive delay is non-increasing as backlog grows", () => {
-    // Compare expected values (random pieces shared across both sides).
     const ch = "a";
-    // Run many samples per backlog and average; the scaling factor should
-    // still dominate the noise.
     const avg = (backlog: number, n = 300) => {
       let s = 0;
       for (let i = 0; i < n; i++) s += adaptiveCharDelayMs(ch, backlog);
@@ -177,6 +178,43 @@ describe("typewriter cadence", () => {
     expect(c).toBeLessThan(b);
     expect(d).toBeLessThan(c);
     expect(d).toBeLessThanOrEqual(3 + 1e-9);
+  });
+
+  test("rhythm modulator stays in plausible bounds", () => {
+    for (let t = 0; t < 30_000; t += 13) {
+      const m = rhythmModulator(t);
+      expect(m).toBeGreaterThan(0.7);
+      expect(m).toBeLessThan(1.3);
+    }
+  });
+
+  test("rhythm modulator averages near 1 over many cycles", () => {
+    let sum = 0;
+    let count = 0;
+    // Sample many full periods (primary ~2.8s) to swamp the small overtone.
+    for (let t = 0; t < 60_000; t += 7) {
+      sum += rhythmModulator(t);
+      count++;
+    }
+    expect(sum / count).toBeCloseTo(1, 1); // ±0.05
+  });
+
+  test("word-boundary pause fires only after a word", () => {
+    // Word-ending space gets a pause; everything else doesn't.
+    const hasPause = (ch: string, prev: string | null) => {
+      // Several samples since the value is random.
+      let sawPositive = false;
+      for (let i = 0; i < 40; i++) {
+        if (wordBoundaryPauseMs(ch, prev) > 0) { sawPositive = true; break; }
+      }
+      return sawPositive;
+    };
+    expect(hasPause(" ", "a")).toBe(true);
+    expect(hasPause(" ", ".")).toBe(true);
+    expect(wordBoundaryPauseMs("a", "a")).toBe(0);
+    expect(wordBoundaryPauseMs(" ", " ")).toBe(0);
+    expect(wordBoundaryPauseMs(" ", null)).toBe(0);
+    expect(wordBoundaryPauseMs(" ", "\n")).toBe(0);
   });
 });
 
