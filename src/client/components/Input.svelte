@@ -10,6 +10,24 @@
   } = $props();
 
   let value = $state("");
+  let inputEl: HTMLInputElement | undefined = $state();
+
+  /**
+   * Keep focus in the input. Setting `disabled` on an element strips focus
+   * from it, so when `busy` flips true mid-turn we lose the caret. This
+   * effect runs after every reactive update and re-focuses any time the
+   * input is enabled — covers both the initial boot transition and the
+   * end of each agent turn / silence probe, without the operator having to
+   * click between messages.
+   *
+   * `preventScroll: true` keeps the page from jumping if the input is near
+   * a viewport edge (e.g. when the chat log scrolls during a long reply).
+   */
+  $effect(() => {
+    if (booted && !busy && inputEl && document.activeElement !== inputEl) {
+      inputEl.focus({ preventScroll: true });
+    }
+  });
 
   function submit(e: Event): void {
     e.preventDefault();
@@ -24,13 +42,13 @@
 <form onsubmit={submit} class:disabled={!booted || busy}>
   <span class="caret">›</span>
   <input
+    bind:this={inputEl}
     bind:value
     disabled={!booted || busy}
     placeholder={!booted ? "…" : busy ? "thinking…" : "type a message"}
     autocomplete="off"
     autocapitalize="off"
     spellcheck="false"
-    autofocus
   />
 </form>
 
