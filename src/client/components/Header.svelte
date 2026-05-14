@@ -4,6 +4,7 @@
   import ThinkingIndicator from "./ThinkingIndicator.svelte";
   import SpeedSlider from "./SpeedSlider.svelte";
   import FontSelect from "./FontSelect.svelte";
+  import FullscreenToggle from "./FullscreenToggle.svelte";
   import { boot } from "../stores/boot.svelte";
   import { work } from "../stores/work.svelte";
 
@@ -35,14 +36,15 @@
   </span>
   <FontSelect />
   <SpeedSlider />
+  <FullscreenToggle />
   <ModelSelect bind:value={selectedModel} />
 </header>
 
 <style>
   header {
     display: grid;
-    /* light  title  status   font   speed   model */
-    grid-template-columns: 1.5em auto 1fr 9rem 10rem 15rem;
+    /* light  title  status   font   speed   fullscreen   model */
+    grid-template-columns: 1.5em auto 1fr 9rem 10rem auto 15rem;
     align-items: center;
     gap: 0.75rem;
     padding: 0.4rem 0.6rem;

@@ -21,6 +21,8 @@
   import ChatLog from "./components/ChatLog.svelte";
   import Input from "./components/Input.svelte";
   import SideColumn from "./components/SideColumn.svelte";
+  import PhotosensitivityWarning from "./components/PhotosensitivityWarning.svelte";
+  import Goodbye from "./components/Goodbye.svelte";
   import { chat } from "./stores/chat.svelte";
   import { ollama } from "./stores/ollama.svelte";
   import { boot } from "./stores/boot.svelte";
@@ -40,6 +42,17 @@
   import { logEvent, sessionId } from "./log";
 
   const MODEL_KEY = "spaghetti.model";
+
+  /**
+   * Gate state. Shown before anything else mounts:
+   *   warning — photosensitivity gate; any key → game, Esc → goodbye
+   *   game    — normal boot + scene flow
+   *   goodbye — black screen with grey 'goodbye'; no way back without reload
+   *
+   * The boot sequence (and everything else that runs on mount) is
+   * deferred until gateState flips to 'game'.
+   */
+  let gateState = $state<"warning" | "game" | "goodbye">("warning");
 
   let selectedModel = $state<string | null>(null);
   let busy = $state(false);
@@ -409,8 +422,23 @@
     dispatch(next);
   });
 
-  onMount(() => {
+  function onWarningContinue(): void {
+    if (gateState !== "warning") return;
+    gateState = "game";
+    // runBoot starts the typed boot sequence + scene state machine.
+    // Deferred until now so the user doesn't see flicker/flash before
+    // they've consented past the photosensitivity gate.
     runBoot();
+  }
+
+  function onWarningOptOut(): void {
+    if (gateState !== "warning") return;
+    gateState = "goodbye";
+  }
+
+  onMount(() => {
+    // No runBoot() here — that fires only when the warning is dismissed
+    // via onWarningContinue. Cleanup still runs on unmount regardless.
     return () => {
       clearSilence();
       clearAutoPick();
@@ -421,22 +449,30 @@
   });
 </script>
 
-<BootFlicker />
-<!--
-  Status-change flash overlay. Sits above the scene (z 200), under the
-  BlinkingLight (z 250) so the light visibly pulses while the rest
-  dims. Fast fade in (70ms ease-out), slower fade out (250ms) — the
-  punctuation lands sharp and breathes back.
--->
-<div class="status-flash" class:active={effects.flashing}></div>
-<div class="screen">
-  <Header bind:selectedModel {busy} />
-  <main class="main">
-    <ChatLog />
-    <Input booted={boot.online} {busy} {onSend} />
-  </main>
-  <SideColumn onpick={onPickStatus} />
-</div>
+{#if gateState === "warning"}
+  <PhotosensitivityWarning
+    onContinue={onWarningContinue}
+    onOptOut={onWarningOptOut}
+  />
+{:else if gateState === "goodbye"}
+  <Goodbye />
+{:else}
+  <BootFlicker />
+  <!--
+    Status-change flash overlay. Sits above the scene (z 200), under
+    the BlinkingLight (z 250) so the light visibly pulses while the
+    rest dims. Fast fade in (70ms ease-out), slower fade out (250ms).
+  -->
+  <div class="status-flash" class:active={effects.flashing}></div>
+  <div class="screen">
+    <Header bind:selectedModel {busy} />
+    <main class="main">
+      <ChatLog />
+      <Input booted={boot.online} {busy} {onSend} />
+    </main>
+    <SideColumn onpick={onPickStatus} />
+  </div>
+{/if}
 
 <style>
   /*
