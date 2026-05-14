@@ -68,13 +68,25 @@
   // moves as text grows, so sparks naturally trail behind the leading edge
   // of typed prose. Sparks themselves are body-appended fire-and-forget
   // DOM nodes — see motion/sparks.ts.
+  //
+  // We track BOTH message.typing AND cursorEl at the effect-body level
+  // so Svelte registers them as dependencies. Streaming agent turns
+  // show the ThinkingIndicator (not the cursor) while waiting for the
+  // first token — cursorEl is undefined during that gap. When the
+  // first token arrives the cursor mounts; reading cursorEl here means
+  // the effect re-runs at that moment and starts the spark loop. If we
+  // only read cursorEl inside the setTimeout callback (as before), the
+  // dependency isn't tracked and the loop stays dead forever.
   $effect(() => {
     if (!message.typing) return;
+    const el = cursorEl;
+    if (!el) return;
+
     let scheduled: ReturnType<typeof setTimeout> | null = null;
 
     function tick() {
-      if (!message.typing || !cursorEl) return;
-      const rect = cursorEl.getBoundingClientRect();
+      if (!message.typing) return;
+      const rect = el!.getBoundingClientRect();
       // Spawn slightly inset from the cursor's right edge, vertically
       // centered. Sparks then fly mostly up-and-right and arc down.
       const x = rect.right - 2;
