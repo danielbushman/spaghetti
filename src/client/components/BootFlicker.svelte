@@ -275,6 +275,20 @@
     Letter-spacing grows over the fade — the after-image diffuses as it
     loses intensity, the way burn-in does.
   */
+  /*
+    The afterimage is stretched vertically — scaleY(2.6) makes the
+    letters tall and noodle-like, matching the name. Locking the
+    transform at a single value (no animating it) avoids the hiccupy
+    feel that came from too many properties interpolating in parallel.
+
+    Only opacity is animated. Colour and text-shadow are FIXED at
+    keyframes so the values that survive are step-changes, not
+    continuous interpolation. Sharper, more like the spark/flare
+    bursts, less like a wobbling cross-fade.
+
+    The font is letter-spaced wider too, so each stretched letter has
+    room to read individually.
+  */
   .afterimage {
     position: fixed;
     inset: 0;
@@ -284,63 +298,33 @@
     pointer-events: none;
     z-index: 55;
     font-family: inherit;
-    font-size: clamp(4rem, 16vw, 18rem);
+    font-size: clamp(3.5rem, 12vw, 14rem);
     font-weight: bold;
-    letter-spacing: 0.05em;
-    color: #ffffff;
+    letter-spacing: 0.18em;
+    color: #c8ffd8;
+    text-shadow: 0 0 24px rgba(136, 230, 200, 0.6);
+    transform: scaleY(2.6);
+    transform-origin: center center;
     opacity: 0;
     user-select: none;
+    white-space: nowrap;
     animation: spaghetti-afterimage 13000ms forwards;
-    will-change: opacity, letter-spacing, color, text-shadow;
+    will-change: opacity;
   }
 
+  /*
+    Opacity-only keyframes. Steps + holds rather than smooth ramps so
+    the punch and the fade feel deliberate rather than wobbly. The
+    final tail is the only smooth segment — that's where "lingers and
+    fades" reads naturally.
+  */
   @keyframes spaghetti-afterimage {
-    /* Quiet through pre-strike, warm-up, dim hold, failed near-strikes. */
-    0%, 72.95% { opacity: 0; letter-spacing: 0.05em; color: #ffffff; text-shadow: none; }
-
-    /* THE STRIKE — snap to bright white-mint with a halo glow. */
-    73% {
-      opacity: 0.92;
-      letter-spacing: 0.05em;
-      color: #ffffff;
-      text-shadow: 0 0 80px rgba(216, 255, 240, 0.9),
-                   0 0 160px rgba(136, 230, 200, 0.55);
-    }
-
-    /* Held through the electric afterglow (matches arc-flash 73-78%). */
-    77% {
-      opacity: 0.82;
-      letter-spacing: 0.06em;
-      color: #f5fff8;
-      text-shadow: 0 0 60px rgba(176, 238, 216, 0.65);
-    }
-
-    /* Colour shifts toward mint as room "settles". */
-    82% {
-      opacity: 0.50;
-      letter-spacing: 0.08em;
-      color: #b0eed8;
-      text-shadow: 0 0 40px rgba(102, 255, 153, 0.45);
-    }
-
-    /* Fading and diffusing into terminal green. */
-    90% {
-      opacity: 0.22;
-      letter-spacing: 0.12em;
-      color: #66ff99;
-      text-shadow: 0 0 22px rgba(51, 255, 102, 0.3);
-    }
-
-    /* A trace before clearing. */
-    96% {
-      opacity: 0.06;
-      letter-spacing: 0.15em;
-      color: #33ff66;
-      text-shadow: none;
-    }
-
-    /* Cleared. */
-    100% { opacity: 0; letter-spacing: 0.16em; color: #33ff66; text-shadow: none; }
+    0%, 72.95% { opacity: 0; }
+    73%        { opacity: 0.95; }   /* punch with the strike */
+    78%        { opacity: 0.80; }   /* held bright */
+    85%        { opacity: 0.45; }   /* settle */
+    92%        { opacity: 0.18; }   /* trace */
+    100%       { opacity: 0; }      /* gone */
   }
 
   @media (prefers-reduced-motion: reduce) {
