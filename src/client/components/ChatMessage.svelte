@@ -13,7 +13,24 @@
   import { onMount } from "svelte";
   import { overshoot, smooth } from "../motion/easings";
   import { burstSparks } from "../motion/sparks";
+  import { playSnapBoing, panFromScreenX } from "../audio/sounds";
   import ThinkingIndicator from "./ThinkingIndicator.svelte";
+
+  /**
+   * Svelte action: fire a stereo-panned "boing" sound when a question
+   * mark span mounts in done-mode. The visual rubber-band snap loops
+   * every ~4s, but the audio is one-shot at appearance time — trying
+   * to sync per-snap-iteration would require tracking each `?`'s
+   * phase, and the cumulative noise from a message with many `?`s
+   * would get tiresome anyway. One pleasant boing per question mark
+   * keeps it tasteful.
+   */
+  function questionMarkBoing(node: HTMLElement) {
+    const rect = node.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    playSnapBoing({ type: "stereo", pan: panFromScreenX(cx) });
+    return {}; // no update, no destroy needed
+  }
 
   let { message }: { message: Message } = $props();
 
@@ -188,7 +205,7 @@
 -->
 <div class="msg msg-{message.role}" bind:this={el} style="opacity: 0;"
   >{#if prefix}<span class="prefix">{prefix}</span>{/if}<span class="text"
-  >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}{#if ch === "?"}<span class="char question" style:--i={i}><span class="snap">{ch}</span></span>{:else}<span class="char">{ch}</span>{/if}{/each}{:else}{#each doneParts as part, i (i)}{#if part.type === "question"}<span class="question" style:--i={i}><span class="snap">?</span></span>{:else if part.type === "money"}<span class="money">{part.value}</span>{:else}{part.value}{/if}{/each}{/if}</span
+  >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}{#if ch === "?"}<span class="char question" style:--i={i}><span class="snap">{ch}</span></span>{:else}<span class="char">{ch}</span>{/if}{/each}{:else}{#each doneParts as part, i (i)}{#if part.type === "question"}<span class="question" use:questionMarkBoing style:--i={i}><span class="snap">?</span></span>{:else if part.type === "money"}<span class="money">{part.value}</span>{:else}{part.value}{/if}{/each}{/if}</span
   >{#if isWaitingForFirstToken}<ThinkingIndicator active={true} />{:else if message.typing}<span bind:this={cursorEl} class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
 
 <style>

@@ -47,7 +47,14 @@
   import { onMount } from "svelte";
   import { flareBurst } from "../motion/flares";
   import { speed } from "../stores/speed.svelte";
-  import { playCrack, playStrike, playTubeHum } from "../audio/sounds";
+  import {
+    playCrack,
+    playStrike,
+    playTubeHum,
+    playPop,
+    spatialFromScreen,
+    type Spatial,
+  } from "../audio/sounds";
 
   /**
    * Flare bursts synced to the CSS flash keyframes.
@@ -104,28 +111,60 @@
   ];
 
   /**
+   * Spatial position of every boot sound — placed where the flares
+   * originate (the .light element's centre, queried at audio-cue
+   * time). 3D HRTF panning makes the flashes audibly come from the
+   * upper-left corner; the tube hum gets the same position so the
+   * sustain feels anchored to the same point.
+   *
+   * Fallback to a fixed top-left position if the element isn't in
+   * the DOM (SSR / weird mount race).
+   */
+  function spatialFromLight(): Spatial {
+    if (typeof document === "undefined") {
+      return spatialFromScreen(30, 30);
+    }
+    const light = document.querySelector(".light");
+    if (light) {
+      const r = light.getBoundingClientRect();
+      return spatialFromScreen(r.left + r.width / 2, r.top + r.height / 2);
+    }
+    return spatialFromScreen(30, 30);
+  }
+
+  /**
    * Audio cues synced to the boot timeline. The percentages are picked
    * from the CSS keyframes:
-   *   17%  small crackle on the first failed strike
-   *   23%  start a slow tube hum during cathode warm-up (runs for the
-   *        rest of the dim hold, ends by 70%)
-   *   50%  a louder crack mid-dim — "almost catches"
-   *   73%  THE STRIKE — sub-bass thump + bright crack
+   *
+   *    5%   tiny pop on flicker punchmark 1
+   *   12%   tiny pop on flicker punchmark 2 (slightly louder)
+   *   17%   small crackle on the first real failed strike
+   *   23%   start a slow tube hum during cathode warm-up (runs for the
+   *         rest of the dim hold, ends by 70%)
+   *   50%   a louder crack mid-dim — "almost catches"
+   *   60%   subtle pop on third punchmark
+   *   73%   THE STRIKE — sub-bass thump + bright crack
+   *
+   * All sounds are 3D-positioned at the BlinkingLight's location so
+   * the boot audio matches the visual origin in the upper-left corner.
    *
    * All are no-ops if audio is muted or the AudioContext hasn't
    * resumed yet.
    */
   type AudioCue = { pct: number; play: () => void };
   const AUDIO_CUES: AudioCue[] = [
-    { pct: 0.17, play: () => playCrack(0.5) },
+    { pct: 0.05, play: () => playPop(0.30, spatialFromLight()) },
+    { pct: 0.12, play: () => playPop(0.40, spatialFromLight()) },
+    { pct: 0.17, play: () => playCrack(0.5,  spatialFromLight()) },
     { pct: 0.23, play: () => {
         // Hum spans cathode-warm-up + dim-hold (~23%-70% of timeline,
         // converted to absolute ms at boot time).
         const humDuration = (totalMs * (0.70 - 0.23)) / 1000;
-        playTubeHum(humDuration, 0.7);
+        playTubeHum(humDuration, 0.7, spatialFromLight());
       } },
-    { pct: 0.50, play: () => playCrack(0.85) },
-    { pct: 0.73, play: () => playStrike(1.0) },
+    { pct: 0.50, play: () => playCrack(0.85, spatialFromLight()) },
+    { pct: 0.60, play: () => playPop(0.30, spatialFromLight()) },
+    { pct: 0.73, play: () => playStrike(1.0, spatialFromLight()) },
   ];
 
   function originFromLightOrFallback(): { x: number; y: number } {

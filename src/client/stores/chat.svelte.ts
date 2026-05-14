@@ -29,6 +29,7 @@ import {
 } from "../motion/typing";
 import { logEvent } from "../log";
 import { speed } from "./speed.svelte";
+import { playSentenceTone, type SentencePunct } from "../audio/sounds";
 
 export type Role = "system" | "user" | "agent";
 
@@ -370,6 +371,12 @@ class ChatStore {
             const boundary = wordBoundaryPauseMs(ch, prevCh);
             const think = thinkingPauseMs(ch, prevCh, m.visible);
             await sleep((base * breath + boundary + think) * scale);
+            // Sentence-end audio cue. Only fires in the natural-cadence
+            // branch (not during fast-flush) so it tracks the same beats
+            // as the rhythm/word-boundary/thinking pauses.
+            if (ch === "." || ch === "!" || ch === "?") {
+              playSentenceTone(ch as SentencePunct);
+            }
           }
           prevCh = ch;
         } else if (receiveDone) {

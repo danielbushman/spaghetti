@@ -20,6 +20,26 @@
 import { audioEngine } from "./engine";
 
 /* ────────────────────────────────────────────────────────────────────
+   Spatial typing
+   ──────────────────────────────────────────────────────────────────── */
+
+/**
+ * Spatial placement for a sound. Two variants:
+ *
+ *   stereo  — left/right pan via StereoPannerNode. Cheap, fine for
+ *             quick UI sounds (sparks, blips, sentence-end tones).
+ *
+ *   3d      — full HRTF positioning via PannerNode. Listener sits at
+ *             origin facing -Z; sources position themselves in a
+ *             normalized -1..1 box mapped from screen coords by
+ *             `spatialFromScreen`. Use for moments that benefit
+ *             from a real sense of *where on screen* the sound is.
+ */
+export type Spatial =
+  | { type: "stereo"; pan: number }
+  | { type: "3d"; x: number; y: number; z?: number };
+
+/* ────────────────────────────────────────────────────────────────────
    Internal helpers
    ──────────────────────────────────────────────────────────────────── */
 
@@ -43,19 +63,71 @@ function whiteNoiseBuffer(
   return buf;
 }
 
-/** Map a viewport pixel column to a pan value in [-1, 1]. */
-export function panFromScreenX(x: number, viewportWidth = window.innerWidth): number {
+/** Map a viewport pixel column to a stereo pan value in [-1, 1]. */
+export function panFromScreenX(
+  x: number,
+  viewportWidth = window.innerWidth,
+): number {
   return Math.max(-1, Math.min(1, (x / viewportWidth) * 2 - 1));
 }
 
-/** Build a stereo panner node on the engine's context, or null if not ready. */
-function makePanner(pan: number | undefined): StereoPannerNode | null {
+/**
+ * Map viewport coords to a 3D position for HRTF panning. Listener
+ * sits at origin facing -Z; normalized device coords map roughly
+ * to a 2×2 plane in front of the listener.
+ *
+ *   screen top-left   →  ( -1, +1, 0 )
+ *   screen centre     →  (  0,  0, 0 )
+ *   screen bottom-right → ( +1, -1, 0 )
+ */
+export function spatialFromScreen(
+  x: number,
+  y: number,
+  viewportWidth = window.innerWidth,
+  viewportHeight = window.innerHeight,
+): Spatial {
+  const nx = (x / viewportWidth) * 2 - 1;
+  const ny = -((y / viewportHeight) * 2 - 1); // flip Y — screen Y is down, 3D Y is up
+  return { type: "3d", x: nx, y: ny, z: 0 };
+}
+
+/** Build the right panner node for a Spatial value, or null if not ready. */
+function makeSpatialNode(spatial: Spatial | undefined): AudioNode | null {
   const ctx = audioEngine.context;
-  if (!ctx) return null;
-  if (pan === undefined) return null;
-  const p = ctx.createStereoPanner();
-  p.pan.value = Math.max(-1, Math.min(1, pan));
+  if (!ctx || !spatial) return null;
+  if (spatial.type === "stereo") {
+    const p = ctx.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, spatial.pan));
+    return p;
+  }
+  const p = ctx.createPanner();
+  p.panningModel = "HRTF";
+  p.distanceModel = "inverse";
+  p.refDistance = 1;
+  p.maxDistance = 10000;
+  p.rolloffFactor = 1;
+  p.positionX.value = spatial.x;
+  p.positionY.value = spatial.y;
+  p.positionZ.value = spatial.z ?? 0;
   return p;
+}
+
+/**
+ * Wire `source → [panner] → master`. Convenience helper used by every
+ * play* function so they don't each duplicate the connection logic.
+ */
+function connectThroughSpatial(
+  source: AudioNode,
+  spatial: Spatial | undefined,
+  master: GainNode,
+): void {
+  const panner = makeSpatialNode(spatial);
+  if (panner) {
+    source.connect(panner);
+    panner.connect(master);
+  } else {
+    source.connect(master);
+  }
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -66,8 +138,8 @@ function makePanner(pan: number | undefined): StereoPannerNode | null {
    ──────────────────────────────────────────────────────────────────── */
 
 export type SparkOptions = {
-  /** Stereo pan in [-1, 1]. Omit for centred. */
-  pan?: number;
+  /** Spatial placement. Omit for centred. */
+  spatial?: Spatial;
   /** Volume multiplier. Default 0.08 — already quiet. */
   volume?: number;
 };
@@ -95,19 +167,45 @@ export function playSpark(options: SparkOptions = {}): void {
   env.gain.linearRampToValueAtTime(volume, now + 0.001);
   env.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
 
-  const panner = makePanner(options.pan);
-
   noise.connect(bp);
   bp.connect(env);
-  if (panner) {
-    env.connect(panner);
-    panner.connect(master);
-  } else {
-    env.connect(master);
-  }
+  connectThroughSpatial(env, options.spatial, master);
 
   noise.start(now);
   noise.stop(now + 0.06);
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   Pop — even shorter than a spark. Highpass noise burst ~30ms total.
+   Used for the boot scrim's tiny flicker punchmarks (the failed-
+   strike pre-events at 5%, 12%, 60% of the timeline).
+   ──────────────────────────────────────────────────────────────────── */
+
+export function playPop(intensity = 0.5, spatial?: Spatial): void {
+  const ctx = audioEngine.context;
+  const master = audioEngine.masterNode;
+  if (!ctx || !master) return;
+
+  const now = ctx.currentTime;
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = whiteNoiseBuffer(ctx, 0.035, 2);
+
+  const hp = ctx.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = 1800;
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(0.12 * intensity, now + 0.002);
+  env.gain.exponentialRampToValueAtTime(0.0008, now + 0.035);
+
+  noise.connect(hp);
+  hp.connect(env);
+  connectThroughSpatial(env, spatial, master);
+
+  noise.start(now);
+  noise.stop(now + 0.05);
 }
 
 /* ────────────────────────────────────────────────────────────────────
@@ -116,7 +214,7 @@ export function playSpark(options: SparkOptions = {}): void {
    a spark but still brief.
    ──────────────────────────────────────────────────────────────────── */
 
-export function playCrack(intensity = 0.5): void {
+export function playCrack(intensity = 0.5, spatial?: Spatial): void {
   const ctx = audioEngine.context;
   const master = audioEngine.masterNode;
   if (!ctx || !master) return;
@@ -140,7 +238,7 @@ export function playCrack(intensity = 0.5): void {
 
   noise.connect(bp);
   bp.connect(env);
-  env.connect(master);
+  connectThroughSpatial(env, spatial, master);
 
   noise.start(now);
   noise.stop(now + 0.25);
@@ -152,7 +250,7 @@ export function playCrack(intensity = 0.5): void {
    has air). Used at the final boot flash.
    ──────────────────────────────────────────────────────────────────── */
 
-export function playStrike(intensity = 1): void {
+export function playStrike(intensity = 1, spatial?: Spatial): void {
   const ctx = audioEngine.context;
   const master = audioEngine.masterNode;
   if (!ctx || !master) return;
@@ -171,7 +269,7 @@ export function playStrike(intensity = 1): void {
   subEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
 
   sub.connect(subEnv);
-  subEnv.connect(master);
+  connectThroughSpatial(subEnv, spatial, master);
   sub.start(now);
   sub.stop(now + 0.5);
 
@@ -191,7 +289,7 @@ export function playStrike(intensity = 1): void {
 
   noise.connect(bp);
   bp.connect(noiseEnv);
-  noiseEnv.connect(master);
+  connectThroughSpatial(noiseEnv, spatial, master);
   noise.start(now);
   noise.stop(now + 0.2);
 }
@@ -202,7 +300,11 @@ export function playStrike(intensity = 1): void {
    the caller just supplies a duration.
    ──────────────────────────────────────────────────────────────────── */
 
-export function playTubeHum(durationSec: number, intensity = 0.6): void {
+export function playTubeHum(
+  durationSec: number,
+  intensity = 0.6,
+  spatial?: Spatial,
+): void {
   const ctx = audioEngine.context;
   const master = audioEngine.masterNode;
   if (!ctx || !master) return;
@@ -243,7 +345,7 @@ export function playTubeHum(durationSec: number, intensity = 0.6): void {
   a.connect(lp);
   b.connect(lp);
   lp.connect(env);
-  env.connect(master);
+  connectThroughSpatial(env, spatial, master);
 
   a.start(now);
   b.start(now);
@@ -252,4 +354,166 @@ export function playTubeHum(durationSec: number, intensity = 0.6): void {
   a.stop(stopAt);
   b.stop(stopAt);
   lfo.stop(stopAt);
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   Sentence-end tone — small sine blip when the typewriter hits
+   '.', '!', or '?'. Pitch varies by terminator. Very low volume
+   so it reads as a subtle bell, not a notification.
+   ──────────────────────────────────────────────────────────────────── */
+
+export type SentencePunct = "." | "!" | "?";
+
+const SENTENCE_FREQ: Record<SentencePunct, number> = {
+  ".": 600,
+  "!": 900,
+  "?": 1200,
+};
+
+export function playSentenceTone(
+  kind: SentencePunct = ".",
+  spatial?: Spatial,
+): void {
+  const ctx = audioEngine.context;
+  const master = audioEngine.masterNode;
+  if (!ctx || !master) return;
+
+  const now = ctx.currentTime;
+  const freq = SENTENCE_FREQ[kind];
+
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.value = freq;
+
+  // Slight pitch droop — feels less "alarm clock", more "thought lands".
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + 0.18);
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(0.04, now + 0.008);
+  env.gain.exponentialRampToValueAtTime(0.0005, now + 0.2);
+
+  osc.connect(env);
+  connectThroughSpatial(env, spatial, master);
+
+  osc.start(now);
+  osc.stop(now + 0.22);
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   Snap boing — short pitched plosive for the `?` rubber-band snap.
+   Played once per question mark on done-mode mount (i.e. when a
+   completed message renders). The visual snap loops every ~4s with
+   per-instance phase offset; doing audio per-cycle would require
+   tracking each `?`'s phase, which is more complex than it's worth.
+   ──────────────────────────────────────────────────────────────────── */
+
+export function playSnapBoing(spatial?: Spatial): void {
+  const ctx = audioEngine.context;
+  const master = audioEngine.masterNode;
+  if (!ctx || !master) return;
+
+  const now = ctx.currentTime;
+
+  // Square wave with quick exp pitch sweep down — gives a "boing".
+  const osc = ctx.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(350, now);
+  osc.frequency.exponentialRampToValueAtTime(180, now + 0.07);
+
+  // Lowpass softens the edges so it's not too harsh.
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 1400;
+  lp.Q.value = 1.2;
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(0.06, now + 0.005);
+  env.gain.exponentialRampToValueAtTime(0.0005, now + 0.09);
+
+  osc.connect(lp);
+  lp.connect(env);
+  connectThroughSpatial(env, spatial, master);
+
+  osc.start(now);
+  osc.stop(now + 0.11);
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   Sample loading + playback. For future use — no samples are
+   bundled yet, but the helpers exist so dropping a .wav/.mp3 into
+   the project becomes trivial.
+   ──────────────────────────────────────────────────────────────────── */
+
+const sampleCache = new Map<string, AudioBuffer>();
+
+/**
+ * Fetch and decode an audio file. Cached per URL — subsequent calls
+ * for the same URL return the same buffer without re-fetching.
+ * Returns null if the context isn't live or the fetch failed.
+ *
+ * Supported formats are whatever the browser's decodeAudioData
+ * accepts — WAV, MP3, OGG, FLAC, AAC, etc.
+ */
+export async function loadSample(url: string): Promise<AudioBuffer | null> {
+  const cached = sampleCache.get(url);
+  if (cached) return cached;
+
+  const ctx = audioEngine.context;
+  if (!ctx) return null;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn("[audio] sample fetch failed:", url, res.status);
+      return null;
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = await ctx.decodeAudioData(arrayBuffer);
+    sampleCache.set(url, buffer);
+    return buffer;
+  } catch (e) {
+    console.warn("[audio] sample decode failed:", url, e);
+    return null;
+  }
+}
+
+export type PlayBufferOptions = {
+  /** Per-source gain. Default 1.0 (full). */
+  volume?: number;
+  /** Stereo pan or 3D position. */
+  spatial?: Spatial;
+  /** Playback rate. 1.0 = original. 2.0 = octave up. */
+  rate?: number;
+  /** Loop playback until stop() is called on the returned source. */
+  loop?: boolean;
+};
+
+/**
+ * Schedule a decoded AudioBuffer for playback. Returns the
+ * AudioBufferSourceNode so callers can `.stop()` it (for loops) or
+ * attach event listeners. Returns null if the engine isn't live.
+ */
+export function playBuffer(
+  buffer: AudioBuffer,
+  options: PlayBufferOptions = {},
+): AudioBufferSourceNode | null {
+  const ctx = audioEngine.context;
+  const master = audioEngine.masterNode;
+  if (!ctx || !master) return null;
+
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.value = options.rate ?? 1;
+  src.loop = options.loop ?? false;
+
+  const gain = ctx.createGain();
+  gain.gain.value = options.volume ?? 1;
+
+  src.connect(gain);
+  connectThroughSpatial(gain, options.spatial, master);
+
+  src.start(ctx.currentTime);
+  return src;
 }

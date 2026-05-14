@@ -7,6 +7,7 @@
   import FullscreenToggle from "./FullscreenToggle.svelte";
   import RestartButton from "./RestartButton.svelte";
   import MuteButton from "./MuteButton.svelte";
+  import VolumeSlider from "./VolumeSlider.svelte";
   import { boot } from "../stores/boot.svelte";
   import { work } from "../stores/work.svelte";
 
@@ -40,6 +41,7 @@
   </span>
   <FontSelect />
   <SpeedSlider />
+  <VolumeSlider />
   <MuteButton />
   <FullscreenToggle />
   <RestartButton {onrestart} />
@@ -49,8 +51,8 @@
 <style>
   header {
     display: grid;
-    /* light  title  status   font   speed   mute  fs   restart   model */
-    grid-template-columns: 1.5em auto 1fr 9rem 10rem auto auto auto 15rem;
+    /* light  title  status   font   speed   vol   mute  fs   restart   model */
+    grid-template-columns: 1.5em auto 1fr 9rem 10rem 7rem auto auto auto 15rem;
     align-items: center;
     gap: 0.75rem;
     padding: 0.4rem 0.6rem;

@@ -153,7 +153,7 @@ export function burstSparks(x: number, y: number, dirX = 1): void {
   for (let i = 0; i < count; i++) spawnSpark(x, y, { dirX });
 
   if (Math.random() < 0.35 && typeof window !== "undefined") {
-    playSpark({ pan: panFromScreenX(x) });
+    playSpark({ spatial: { type: "stereo", pan: panFromScreenX(x) } });
   }
 }
 
