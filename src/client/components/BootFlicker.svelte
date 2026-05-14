@@ -82,8 +82,13 @@
    * Afterimage has its own duration, longer than the flicker remainder,
    * so the colour-shift fade plays out unhurried after the strike.
    * Scaled by the same speed multiplier as everything else.
+   *
+   * The first ~78% (≈7s at 1× speed) is the visible drama — punch,
+   * mint→rose→fuchsia colour drift, fade to barely-visible. The
+   * remaining ~22% (≈2s) is the "ghost tail" — the title hangs at
+   * very low opacity for two extra seconds before vanishing entirely.
    */
-  const AFTERIMAGE_FADE_BASE_MS = 7_000;
+  const AFTERIMAGE_FADE_BASE_MS = 9_000;
 
   // Capture at mount — CSS animation runs to its own schedule, so once
   // we hand it a duration the value is fixed for this run.
@@ -354,6 +359,22 @@
     invisible.
   */
   @keyframes spaghetti-afterimage {
+    /*
+      Keyframe percentages are mapped to the 9s timeline so the visible
+      drama (0% → 66%) takes the same ~6s it always did. The remaining
+      ~33% of the timeline (~3s, of which ~2s is the new ghost-tail
+      contribution) holds the title at barely-visible opacity and
+      finally fades it out.
+
+      Timing on the 9s timeline:
+        0     %  →  0    ms      strike punch
+       12     %  →  1080 ms      held bright (was 15% of 7s = 1050ms)
+       39     %  →  3510 ms      mid-fade lavender (was 50% of 7s = 3500ms)
+       66     %  →  5940 ms      almost-gone fuchsia (was 85% of 7s = 5950ms)
+       78     %  →  7020 ms      barely-visible threshold (was 100% of 7s)
+       98     %  →  8820 ms      still barely visible — ~1800ms hold
+       100    %  →  9000 ms      cleared
+    */
     /* Punch in: electric white-mint flash. */
     0% {
       opacity: 0.95;
@@ -363,27 +384,40 @@
         0 0 160px rgba(136, 230, 200, 0.55);
     }
     /* Held bright; very faint mint tint. */
-    15% {
+    12% {
       opacity: 0.78;
       color: #e8fff0;
       text-shadow:
         0 0 56px rgba(200, 240, 220, 0.65),
         0 0 100px rgba(180, 220, 200, 0.25);
     }
-    /* Drifting through dusty rose / lavender — the temperature
+    /* Drifting through dusty rose / lavender — temperature
        transitions from cool electric to warm magenta. */
-    50% {
+    39% {
       opacity: 0.42;
       color: #d090d0;
       text-shadow: 0 0 40px rgba(208, 144, 208, 0.55);
     }
     /* Almost there — saturated fuchsia, low opacity. */
-    85% {
+    66% {
       opacity: 0.15;
       color: #c850e0;
       text-shadow: 0 0 22px rgba(200, 80, 224, 0.4);
     }
-    /* Final: fuchsia violet, faded to nothing. */
+    /* Entered the ghost-tail — barely visible from here on. */
+    78% {
+      opacity: 0.05;
+      color: #c026d3;
+      text-shadow: 0 0 10px rgba(192, 38, 211, 0.3);
+    }
+    /* Still lingering ~2 seconds after the visible drama ended,
+       drifting toward zero so the fade-to-vanish is smooth. */
+    98% {
+      opacity: 0.02;
+      color: #c026d3;
+      text-shadow: none;
+    }
+    /* Cleared. */
     100% {
       opacity: 0;
       color: #c026d3;
