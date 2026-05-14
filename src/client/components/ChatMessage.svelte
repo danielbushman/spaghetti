@@ -93,7 +93,7 @@
     snaps the char to visible quickly, then settles.
   */
   .char {
-    animation: char-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: char-in 90ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   @keyframes char-in {
     from { opacity: 0; }

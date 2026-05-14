@@ -153,14 +153,14 @@ describe("typewriter cadence", () => {
       }
       return { min, max };
     };
-    // Letters: 12-26 base, plus rare hitch (50-130). Floor stays tight.
+    // Letters: 8-20 base, plus rare hitch (35-85). Floor stays tight.
     const letter = buckets("a", 2000);
-    expect(letter.min).toBeGreaterThanOrEqual(12);
-    expect(letter.min).toBeLessThanOrEqual(25);
+    expect(letter.min).toBeGreaterThanOrEqual(8);
+    expect(letter.min).toBeLessThanOrEqual(20);
     // Sentence terminators are clearly slower than letters.
     const sentence = buckets(".");
-    expect(sentence.min).toBeGreaterThanOrEqual(200);
-    expect(sentence.max).toBeLessThanOrEqual(330);
+    expect(sentence.min).toBeGreaterThanOrEqual(140);
+    expect(sentence.max).toBeLessThanOrEqual(230);
   });
 
   test("adaptive delay is non-increasing as backlog grows", () => {
@@ -183,8 +183,8 @@ describe("typewriter cadence", () => {
   test("rhythm modulator stays in plausible bounds", () => {
     for (let t = 0; t < 30_000; t += 13) {
       const m = rhythmModulator(t);
-      expect(m).toBeGreaterThan(0.7);
-      expect(m).toBeLessThan(1.3);
+      expect(m).toBeGreaterThan(0.83);
+      expect(m).toBeLessThan(1.17);
     }
   });
 
