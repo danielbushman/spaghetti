@@ -1,56 +1,74 @@
 /**
  * Short-lived UI effects that aren't tied to a scene phase.
  *
- * Currently just `flash` — a sub-second punctuation event triggered when
- * a status item changes state (red → working, working → green). The
- * scene-wide dim and the BlinkingLight's bright pulse both subscribe to
- * `flashing` and react synchronously.
+ * The flash event is the moment of *awareness* — when a status item
+ * first appears, or when its state changes. Visually: the scene dims,
+ * the focal item pops toward the camera with a scale-up motion, the
+ * BlinkingLight pulses bright. The whole thing lasts ~1.2 seconds —
+ * not a quick flash, a sustained "look here" beat.
  *
- * Not called when a status item first appears (the off → on transition);
- * the initial reveal is its own visual moment via the staggered slide-in.
+ * Multiple flashes can overlap (e.g. the three status items revealing
+ * one after another with 800ms between them). Each item gets its own
+ * spotlight window via `flashingItems`; the overlay scrim stays on
+ * for the union of all active windows via a counter.
  */
 
-const FLASH_DURATION_MS = 350;
+const FLASH_DURATION_MS = 1200;
 
 class EffectsStore {
-  /**
-   * True while a flash is in progress. Components read this to dim
-   * themselves / pulse brighter / etc. Auto-clears after the duration.
-   */
+  /** True while *any* flash is in progress. Drives the overlay scrim. */
   flashing = $state(false);
 
   /**
-   * Optional ID of the item being focused by the flash (e.g. the
-   * status item that just changed state). Components check this to
-   * decide whether they should "spotlight" themselves while the
-   * scene dims around them.
+   * Set of item IDs currently being spotlit. Each id is added when
+   * flash() is called with it and removed when its individual window
+   * expires. Components check `has(item.id)` to decide whether to apply
+   * the spotlight + camera-jump styling.
    */
-  flashingItemId = $state<string | null>(null);
+  flashingItems = $state<Set<string>>(new Set());
 
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private activeCount = 0;
+  private timers: Set<ReturnType<typeof setTimeout>> = new Set();
 
   /**
-   * Trigger a flash. Pass an `itemId` to mark a specific element as
-   * the focal point; components observing `flashingItemId` can pop
-   * brighter when their id matches. Multiple flash() calls in quick
-   * succession restart the timer (most recent flash wins).
+   * Trigger a flash. With an `itemId`, that item gets its own ~1.2s
+   * spotlight window (animation re-fires on each new call for the same
+   * id). Without an id, only the overlay scrim activates.
+   *
+   * Calls can overlap freely — each opens its own timer; the overlay
+   * stays on until the last timer expires.
    */
   flash(itemId?: string, durationMs = FLASH_DURATION_MS): void {
     this.flashing = true;
-    this.flashingItemId = itemId ?? null;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      this.flashing = false;
-      this.flashingItemId = null;
-      this.timer = null;
+    this.activeCount += 1;
+    if (itemId) {
+      // Build a new Set so Svelte's $state tracks the mutation reliably.
+      const next = new Set(this.flashingItems);
+      next.add(itemId);
+      this.flashingItems = next;
+    }
+
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      this.activeCount = Math.max(0, this.activeCount - 1);
+      if (itemId) {
+        const next = new Set(this.flashingItems);
+        next.delete(itemId);
+        this.flashingItems = next;
+      }
+      if (this.activeCount === 0) {
+        this.flashing = false;
+      }
     }, durationMs);
+    this.timers.add(timer);
   }
 
   stop(): void {
     this.flashing = false;
-    this.flashingItemId = null;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
+    this.flashingItems = new Set();
+    this.activeCount = 0;
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
   }
 }
 

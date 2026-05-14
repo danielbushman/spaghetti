@@ -401,7 +401,10 @@
     } finally {
       busy = false;
       if (scene.phase === "triage_intro") {
-        telemetry.revealStatus();
+        // Each item's reveal is the operator's "first becoming aware"
+        // moment for that task — fire a dramatic flash so the item
+        // pops toward the camera while the rest of the scene dims.
+        telemetry.revealStatus((id) => effects.flash(id));
         scene.phase = "triage";
         logEvent({ type: "scene_phase", phase: "triage" });
         // Start the auto-pick countdown the moment status items are
@@ -479,9 +482,15 @@
 
 <style>
   /*
-    Status-change flash overlay. Black scrim that briefly fades in/out
-    over the whole viewport. BlinkingLight sets its own z-index above
-    this layer so it pulses through unimpeded.
+    Status-flash scrim. The scrim now stays much darker and longer
+    than the original "split-second flash" — it's a sustained
+    moment-of-awareness, not a punctuation event. With multiple
+    overlapping flashes (e.g. the staggered initial reveal) the
+    overlay stays on for the union of all active flash windows,
+    fading back when the last one expires.
+
+    Slower asymmetric timing too: ~280ms in, ~450ms out. Deliberate
+    rather than reflexive.
   */
   .status-flash {
     position: fixed;
@@ -490,20 +499,11 @@
     z-index: 200;
     background: #000;
     opacity: 0;
-    transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 450ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   .status-flash.active {
-    /*
-      Much lower than before — a *hint* of dim rather than a curtain.
-      The focal status item brightens hard on its own (see StatusItem's
-      .spotlight state), so the contrast between focused item and
-      shaded surroundings does the real work; the scrim just nudges
-      the rest of the scene back so the eye is drawn forward.
-    */
-    opacity: 0.22;
-    /* Fast fade in on activation; slower fade out kicks in once
-       `active` is removed (when the effects store clears flashing). */
-    transition: opacity 70ms ease-out;
+    opacity: 0.68;
+    transition: opacity 280ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .screen {

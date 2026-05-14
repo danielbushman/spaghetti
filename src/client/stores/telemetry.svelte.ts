@@ -87,8 +87,12 @@ class TelemetryStore {
   /**
    * Stagger-reveal the three red status items. Idempotent — safe to call
    * multiple times; subsequent calls are no-ops.
+   *
+   * The optional `onReveal` callback fires per item as each appears.
+   * App.svelte uses this to trigger a spotlight flash on each new
+   * item's "first becoming aware" moment.
    */
-  revealStatus(): void {
+  revealStatus(onReveal?: (id: string) => void): void {
     if (this.revealed) return;
     this.revealed = true;
     const items: Omit<StatusItem, "state">[] = [
@@ -99,6 +103,7 @@ class TelemetryStore {
     items.forEach((item, i) => {
       setTimeout(() => {
         this.statusItems = [...this.statusItems, { ...item, state: "red" }];
+        onReveal?.(item.id);
       }, i * 800);
     });
   }
