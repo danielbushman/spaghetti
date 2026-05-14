@@ -38,9 +38,13 @@ const TICK_MS = 600;
 
 class TelemetryStore {
   signals = $state<Signal[]>([
-    { id: "cpu",    label: "cpu",      unit: "%", history: [], current: 0, min: 0, max: 100 },
-    { id: "errors", label: "errors/s", unit: "",  history: [], current: 0, min: 0, max: 50 },
-    { id: "queue",  label: "q-depth",  unit: "",  history: [], current: 0, min: 0, max: 200 },
+    // Runway is a money signal — always burning down, faster when any
+    // incident is live or being worked on. Visually distinct from the
+    // other gauges (different colour in SignalRow).
+    { id: "runway", label: "runway",   unit: "mo", history: [], current: 6, min: 0, max: 8 },
+    { id: "cpu",    label: "cpu",      unit: "%",  history: [], current: 0, min: 0, max: 100 },
+    { id: "errors", label: "errors/s", unit: "",   history: [], current: 0, min: 0, max: 50 },
+    { id: "queue",  label: "q-depth",  unit: "",   history: [], current: 0, min: 0, max: 200 },
   ]);
   statusItems = $state<StatusItem[]>([]);
 
@@ -48,12 +52,26 @@ class TelemetryStore {
   private revealed = false;
 
   /**
-   * Begin ticking the signal feed. Seeds each signal's history near its
-   * baseline so the sparklines have shape from the first frame.
+   * Begin ticking the signal feed. Seeds each signal's history so the
+   * sparklines have shape from the first frame: gauges seed around their
+   * baseline; runway seeds with a slight downward trend so it visibly
+   * reads as "already burning" before the first tick.
    */
   start(): void {
     if (this.tickHandle) return;
     for (const s of this.signals) {
+      if (s.id === "runway") {
+        const startValue = 6;
+        const seeded: number[] = [];
+        for (let i = 0; i < HISTORY_LEN; i++) {
+          const t = i / (HISTORY_LEN - 1);
+          // Descend slightly over the window so the line opens downward
+          seeded.push(startValue + 0.25 - t * 0.18);
+        }
+        s.history = seeded;
+        s.current = seeded[seeded.length - 1];
+        continue;
+      }
       const baseline = (s.max + s.min) * 0.4;
       const spread = (s.max - s.min) * 0.15;
       const seeded: number[] = [];
@@ -107,16 +125,30 @@ class TelemetryStore {
   private tick(): void {
     const underStress = this.statusItems.some((x) => x.state === "red" || x.state === "working");
     for (const s of this.signals) {
+      if (s.id === "runway") {
+        // Runway always drops. Base drain plus a multiplier when an
+        // incident is live — burn accelerates ~5× under stress, so the
+        // operator's choices visibly cost time.
+        //
+        // Base 0.001/tick × 600ms = 0.00167/sec → ~10 min per simulated
+        // month of runway. Stress adds 0.005/tick → ~2 min/month.
+        const last = s.history[s.history.length - 1] ?? 6;
+        const base = 0.001;
+        const stressDrain = underStress ? 0.005 : 0;
+        const noise = Math.random() * 0.0008; // tiny upward jitter
+        const next = Math.max(s.min, last - base - stressDrain + noise);
+        s.history = [...s.history.slice(-(HISTORY_LEN - 1)), next];
+        s.current = next;
+        continue;
+      }
+
+      // Other gauges: mean-reverting random walk with stress bias.
       const last = s.history[s.history.length - 1] ?? (s.max + s.min) * 0.4;
       const baseline = (s.max + s.min) * 0.4;
-      // Mean-reverting drift toward baseline
       const drift = (baseline - last) * 0.08;
-      // Gaussian-ish noise
       const noise = (Math.random() - 0.5) * (s.max - s.min) * 0.10;
-      // Stress bias while incident is live
       const stress = underStress ? (s.max - s.min) * 0.10 * Math.random() : 0;
       const next = Math.max(s.min, Math.min(s.max, last + drift + noise + stress));
-      // Keep a fixed-length sliding window so sparklines render predictably.
       s.history = [...s.history.slice(-(HISTORY_LEN - 1)), next];
       s.current = next;
     }
