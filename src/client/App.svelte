@@ -39,6 +39,15 @@
   let selectedModel = $state<string | null>(null);
   let busy = $state(false);
 
+  /**
+   * Pending operator inputs. Filled by onSend while busy, drained one at a
+   * time by an $effect when busy flips false. Each entry becomes its own
+   * agent turn — the operator sees the queued user line in the chat log
+   * immediately, but the LLM call is deferred until the previous turn
+   * completes (cf. Claude Code's queueing).
+   */
+  let pendingTexts = $state<string[]>([]);
+
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let priorCheckins: string[] = [];
 
@@ -165,7 +174,9 @@
 
   /**
    * Operator picked a status item — either via click on the side panel or
-   * via a fuzzy name match on a typed message.
+   * via a fuzzy name match on a typed message. Bypasses the queue: if busy,
+   * we return early and let the typed message stay queued; the click path
+   * is gated by the disabled state on the button.
    */
   async function onPickStatus(id: string): Promise<void> {
     if (scene.phase !== "triage" || busy) return;
@@ -195,19 +206,46 @@
     scheduleSilenceProbe(0);
   }
 
+  /**
+   * Operator input entry point. Always shows the message in the chat log
+   * immediately. If the agent is busy, queues the text for later dispatch;
+   * otherwise dispatches now. The dispatcher decides between "pick" and
+   * "chat" based on scene state *at dispatch time*, so a message queued
+   * during triage_intro will still be routed correctly when the scene has
+   * advanced to triage by the time it dispatches.
+   */
   async function onSend(text: string): Promise<void> {
-    if (!boot.online || busy) return;
+    if (!boot.online) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    // Show the message in the log immediately so the operator can see
+    // their queued lines. pushUserInstant also adds to chat.history, so the
+    // LLM will see all queued user turns when it next gets called.
+    chat.pushUserInstant(trimmed);
+
+    if (busy) {
+      pendingTexts = [...pendingTexts, trimmed];
+      return;
+    }
+
+    await dispatch(trimmed);
+  }
+
+  /**
+   * Handle one operator input. Sets busy=true synchronously at the top so
+   * the drain $effect won't fire another dispatch concurrently.
+   */
+  async function dispatch(text: string): Promise<void> {
     clearSilence();
-    chat.pushUserInstant(text);
+
     if (!selectedModel) {
       await chat.typeSystem("// agent is offline — pick a model");
       scheduleSilenceProbe(0);
       return;
     }
 
-    // Did the operator just pick a status item by name while we're in
-    // triage? If so, route through the dedicated action flow instead of a
-    // normal chat turn.
+    // Triage pick by typed name routes through the action flow.
     if (scene.phase === "triage") {
       const matched = matchStatusItem(text, telemetry.statusItems);
       if (matched) {
@@ -229,8 +267,6 @@
       await chat.streamAgentTurn(selectedModel, AGENT_OPTS, addendum);
     } finally {
       busy = false;
-      // After the triage-intro turn lands, reveal the red items and shift
-      // the scene so subsequent input can be parsed as a pick.
       if (scene.phase === "triage_intro") {
         telemetry.revealStatus();
         scene.phase = "triage";
@@ -238,6 +274,19 @@
       scheduleSilenceProbe(0);
     }
   }
+
+  /**
+   * Drain the queue when the agent finishes a turn. Pulls the next input
+   * and dispatches it. The dispatch sets busy=true synchronously, so this
+   * effect won't re-fire mid-flight.
+   */
+  $effect(() => {
+    if (busy) return;
+    if (pendingTexts.length === 0) return;
+    const next = pendingTexts[0];
+    pendingTexts = pendingTexts.slice(1);
+    dispatch(next);
+  });
 
   onMount(() => {
     runBoot();

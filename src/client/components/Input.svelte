@@ -1,3 +1,18 @@
+<!--
+  Input bar.
+
+  Two states matter:
+    booted — false until the agent has typed its opener. Hard-disabled.
+    busy   — true while the agent is mid-turn. Stays *typeable*; submits
+             during this state get queued by the parent (see App.svelte's
+             pendingTexts). This mirrors Claude Code: you can keep typing,
+             your text doesn't get rejected, but the agent finishes its
+             current turn before answering.
+
+  Focus is grabbed back to the input on every transition into the typeable
+  state, including after each agent turn finishes — operator never has to
+  click between messages.
+-->
 <script lang="ts">
   let {
     booted = false,
@@ -12,40 +27,38 @@
   let value = $state("");
   let inputEl: HTMLInputElement | undefined = $state();
 
-  /**
-   * Keep focus in the input. Setting `disabled` on an element strips focus
-   * from it, so when `busy` flips true mid-turn we lose the caret. This
-   * effect runs after every reactive update and re-focuses any time the
-   * input is enabled — covers both the initial boot transition and the
-   * end of each agent turn / silence probe, without the operator having to
-   * click between messages.
-   *
-   * `preventScroll: true` keeps the page from jumping if the input is near
-   * a viewport edge (e.g. when the chat log scrolls during a long reply).
-   */
+  // Keep focus in the input whenever it's typeable (i.e. booted). Busy no
+  // longer disables the field, so we only need to refocus after the boot
+  // transition and after rare external focus loss (e.g. dropdown click).
   $effect(() => {
-    if (booted && !busy && inputEl && document.activeElement !== inputEl) {
+    if (booted && inputEl && document.activeElement !== inputEl) {
       inputEl.focus({ preventScroll: true });
     }
   });
 
   function submit(e: Event): void {
     e.preventDefault();
-    if (!booted || busy) return;
+    if (!booted) return;
     const text = value.trim();
     if (!text) return;
     value = "";
     onSend(text);
   }
+
+  const placeholder = $derived(
+    !booted ? "…"
+    : busy   ? "agent is thinking — your message will queue"
+    : "type a message"
+  );
 </script>
 
-<form onsubmit={submit} class:disabled={!booted || busy}>
+<form onsubmit={submit} class:waiting={busy}>
   <span class="caret">›</span>
   <input
     bind:this={inputEl}
     bind:value
-    disabled={!booted || busy}
-    placeholder={!booted ? "…" : busy ? "thinking…" : "type a message"}
+    disabled={!booted}
+    {placeholder}
     autocomplete="off"
     autocapitalize="off"
     spellcheck="false"
@@ -60,14 +73,26 @@
     border: 1px solid #114422;
     padding: 0.4rem 0.6rem;
     background: #000;
-    transition: border-color 200ms ease, box-shadow 200ms ease;
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease;
   }
   form:focus-within {
     border-color: #33ff66;
     box-shadow: 0 0 8px rgba(51, 255, 102, 0.2);
   }
-  form.disabled { opacity: 0.55; }
-  .caret { color: #33ff66; font-weight: bold; }
+  /* Busy state: amber tint so the operator sees the field is alive but the
+     agent is still working. Caret also recolours so the cue is visible
+     without changing the layout. */
+  form.waiting {
+    border-color: #553311;
+  }
+  form.waiting:focus-within {
+    border-color: #ffaa33;
+    box-shadow: 0 0 8px rgba(255, 170, 51, 0.25);
+  }
+  form.waiting .caret { color: #ffaa33; }
+  .caret { color: #33ff66; font-weight: bold; transition: color 250ms ease; }
   input {
     background: transparent;
     color: #33ff66;

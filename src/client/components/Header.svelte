@@ -1,6 +1,7 @@
 <script lang="ts">
   import BlinkingLight from "./BlinkingLight.svelte";
   import ModelSelect from "./ModelSelect.svelte";
+  import ThinkingIndicator from "./ThinkingIndicator.svelte";
   import { boot } from "../stores/boot.svelte";
 
   let {
@@ -15,7 +16,7 @@
 <header class="phase-{boot.phase}">
   <BlinkingLight />
   <span class="title">spaghetti :: <span class="sub">awakening</span></span>
-  <span class="status">{busy ? "thinking…" : ""}</span>
+  <span class="status"><ThinkingIndicator active={busy} /></span>
   <ModelSelect bind:value={selectedModel} />
 </header>
 
@@ -40,9 +41,10 @@
   }
   .sub { color: #66ffaa; }
   .status {
-    color: #557755;
-    font-style: italic;
     text-align: right;
-    min-width: 6em;
+    min-width: 8em;
+    display: inline-flex;
+    justify-content: flex-end;
+    align-items: center;
   }
 </style>
