@@ -175,7 +175,7 @@
     operator turn sits as its own beat in the conversation.
   */
   .msg.msg-user {
-    margin: 0.5rem 0.3rem 0.25rem 10ch;
+    margin: 1.2rem 0.3rem 0.9rem 10ch;
     color: #cceedd;
   }
   .msg-user .text { color: inherit; }
