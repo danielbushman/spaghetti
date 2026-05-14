@@ -63,9 +63,18 @@
   property. Outer translates from offscreen; inner scales toward the
   camera. They compose via the parent-child relationship.
 -->
+<!--
+  `class:flashing` lifts the whole button above the .status-flash
+  overlay (z 200) so the spotlit row pops through the dim instead of
+  getting muted with everything else. Without this, the camera-jump
+  transform pushed the item visually forward but the overlay still
+  painted on top in the actual stacking order. See the .item base
+  rule below for the z-index pairing.
+-->
 <button
   type="button"
   class="item state-{item.state}"
+  class:flashing={isFlashing}
   bind:this={el}
   style="opacity: 0;"
   disabled={item.state !== "red"}
@@ -89,6 +98,19 @@
     width: 100%;
     padding: 0;
     cursor: default;
+
+    /*
+      position: relative lets z-index take effect on the button and
+      establishes a stacking context. Default z is auto so rows stack
+      normally; .flashing bumps it above the .status-flash overlay
+      (z 200) so the spotlit item visually pops *through* the dim
+      rather than being muted with everything else. Pairing matches
+      the BlinkingLight's z 250.
+    */
+    position: relative;
+  }
+  .item.flashing {
+    z-index: 250;
   }
   .item.state-red { cursor: pointer; }
   .item.state-red:focus-visible {
