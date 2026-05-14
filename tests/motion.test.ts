@@ -275,7 +275,17 @@ describe("sparks", () => {
     // importing and invoking under bun:test (no DOM) must not crash.
     const { burstSparks, spawnSpark } = await import("../src/client/motion/sparks");
     expect(() => burstSparks(0, 0)).not.toThrow();
-    expect(() => spawnSpark(10, 20, -1)).not.toThrow();
+    expect(() => spawnSpark(10, 20, { dirX: -1 })).not.toThrow();
+  });
+});
+
+describe("flares", () => {
+  test("bloomFlare and flareBurst are no-ops in non-DOM env (no throw)", async () => {
+    const { bloomFlare, flareBurst } = await import("../src/client/motion/flares");
+    expect(() => bloomFlare(0, 0)).not.toThrow();
+    expect(() => bloomFlare(10, 20, { intensity: 2 } as any)).not.toThrow();
+    expect(() => flareBurst(0, 0, 5)).not.toThrow();
+    expect(() => flareBurst(0, 0, 5, { intensity: 1.8 })).not.toThrow();
   });
 });
 

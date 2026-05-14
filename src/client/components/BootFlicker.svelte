@@ -45,37 +45,52 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import { flashBurst } from "../motion/sparks";
+  import { flareBurst } from "../motion/flares";
 
   /**
-   * Spark bursts synced to the CSS flash keyframes.
+   * Flare bursts synced to the CSS flash keyframes.
    *
    * The base scrim + electric overlay animations live in @keyframes below.
-   * JS schedules a particle burst at the same instant each electric flash
-   * fires, so the flash visibly "expels" a shower of sparks.
+   * JS schedules a burst of bloom flares (motion/flares.ts) at the same
+   * instant each electric flash fires — the flashes visibly "expel" soft
+   * glowing halos from the top-left corner where the loading indicators
+   * live, rather than gravity-driven sparks that would fall to the floor.
    *
    * Times are derived from the 13000ms animation duration:
-   *   FLASH 1 at 17%  →  2210ms,  smallish burst   (18 sparks)
-   *   FLASH 2 at 50%  →  6500ms,  medium burst     (30 sparks)
-   *   FLASH 3 at 73%  →  9490ms,  THE STRIKE       (60 sparks)
+   *   FLASH 1 at 17%  →  2210ms,   5 flares,  intensity 1.0
+   *   FLASH 2 at 50%  →  6500ms,   9 flares,  intensity 1.3
+   *   FLASH 3 at 73%  →  9490ms,  18 flares,  intensity 1.8   ← STRIKE
    *
-   * Sparks originate from screen-center (where the radial gradient peaks)
-   * and scatter omnidirectionally with weaker-than-cursor gravity, so they
-   * linger long enough to read as actual debris from the flash.
+   * Origin point is the centre of the `.light` element (the blinking
+   * status dot in the header), looked up at burst time so the bursts
+   * track the indicator even if the header layout shifts. Falls back to
+   * a fixed top-left position if the element isn't in the DOM.
+   *
+   * Intensity scales size and drift but NOT lifetime, so the strike feels
+   * bigger without dragging out.
    */
-  const BURSTS: Array<{ delay: number; count: number }> = [
-    { delay: 2_210, count: 18 },
-    { delay: 6_500, count: 30 },
-    { delay: 9_490, count: 60 },
+  const BURSTS: Array<{ delay: number; count: number; intensity: number }> = [
+    { delay: 2_210, count: 5,  intensity: 1.0 },
+    { delay: 6_500, count: 9,  intensity: 1.3 },
+    { delay: 9_490, count: 18, intensity: 1.8 },
   ];
+
+  function originFromLightOrFallback(): { x: number; y: number } {
+    if (typeof document === "undefined") return { x: 30, y: 30 };
+    const light = document.querySelector(".light");
+    if (light) {
+      const r = light.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    return { x: 30, y: 30 };
+  }
 
   onMount(() => {
     const handles: ReturnType<typeof setTimeout>[] = [];
-    for (const { delay, count } of BURSTS) {
+    for (const { delay, count, intensity } of BURSTS) {
       handles.push(setTimeout(() => {
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2;
-        flashBurst(cx, cy, count);
+        const { x, y } = originFromLightOrFallback();
+        flareBurst(x, y, count, { intensity });
       }, delay));
     }
     return () => {

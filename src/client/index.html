@@ -47,8 +47,21 @@
         z-index: 100;
         will-change: transform, opacity;
       }
+      /*
+        Bloom flares for the boot flashes — different particle type from
+        sparks. Soft radial-gradient halo, no gravity, blooms outward and
+        fades. The background and size are set per-instance by JS at spawn
+        (motion/flares.ts).
+      */
+      .flare {
+        position: fixed;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 100;
+        will-change: transform, opacity;
+      }
       @media (prefers-reduced-motion: reduce) {
-        .spark { display: none; }
+        .spark, .flare { display: none; }
       }
     </style>
   </head>

@@ -146,29 +146,6 @@ export function burstSparks(x: number, y: number, dirX = 1): void {
   for (let i = 0; i < count; i++) spawnSpark(x, y, { dirX });
 }
 
-/**
- * Big radial burst from a single origin point — sparks scatter in all
- * directions, larger and faster than cursor sparks, with weaker gravity
- * so they hang in the air briefly before falling. Used for the boot-
- * flicker electric flashes, where each flash should *feel* like it
- * physically expelled a shower of sparks.
- *
- * The accent-color rate is also boosted — flash bursts read better with a
- * mix of yellow/cyan among the green, like a real electrical discharge.
- */
-export function flashBurst(x: number, y: number, count: number): void {
-  for (let i = 0; i < count; i++) {
-    spawnSpark(x, y, {
-      baseAngle: -Math.PI / 2,         // up
-      angleSpread: Math.PI * 2,        // full 360°
-      speedMin: 120,
-      speedMax: 340,
-      lifetimeMin: 550,
-      lifetimeMax: 1200,
-      gravity: 220,                    // weaker; sparks linger
-      sizeMin: 1.5,
-      sizeMax: 4,
-      accentChance: 0.30,              // more colour variety
-    });
-  }
-}
+// Boot-flash flares live in motion/flares.ts. Different particle type
+// (radial-gradient blooms, no gravity), different visual language. They
+// are not sparks.
