@@ -6,7 +6,7 @@
 
 <select bind:value disabled={ollama.models.length === 0}>
   {#if ollama.models.length === 0}
-    <option value={null}>{ollama.error ? "ollama unreachable" : "loading models…"}</option>
+    <option value={null}>{ollama.error ? "ghetti unreachable" : "loading models…"}</option>
   {:else}
     {#each ollama.models as m (m.name)}
       <option value={m.name}>{m.name}</option>

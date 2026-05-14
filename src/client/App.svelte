@@ -26,6 +26,8 @@
   import { boot } from "./stores/boot.svelte";
   import { scene } from "./stores/scene.svelte";
   import { telemetry, matchStatusItem } from "./stores/telemetry.svelte";
+  import { speed } from "./stores/speed.svelte";
+  import { work } from "./stores/work.svelte";
   import {
     AWAKENING_SYSTEM_PROMPT,
     CHECKIN_INSTRUCTION,
@@ -80,6 +82,15 @@
 
   function sleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms));
+  }
+
+  /**
+   * Speed-scaled sleep. The slider's multiplier applies to every paced
+   * delay in the boot sequence + post-boot game loop. Read at the
+   * moment of sleep so changes to the slider take effect immediately.
+   */
+  function speedSleep(ms: number): Promise<void> {
+    return sleep(ms * speed.multiplier);
   }
 
   function readStoredModel(): string | null {
@@ -147,18 +158,20 @@
 
     chat.setSystemPrompt(AWAKENING_SYSTEM_PROMPT);
     boot.phase = "cold";
-    await sleep(600);
+    await speedSleep(600);
 
+    // Boot text uses the internal codename ('ghetti'); the user-facing
+    // docs are the only place 'Ollama' is named.
     const lines: Array<readonly [string, number]> = [
       ["// system: cold boot detected",          350],
       ["// memory ............... ok",           250],
       ["// agent core ........... loading",      400],
       ["// agent core ........... ok",           250],
-      ["// ollama: handshake ...",                 0],
+      ["// ghetti: handshake ...",                 0],
     ];
     for (const [line, pause] of lines) {
       await chat.typeSystem(line);
-      if (pause) await sleep(pause);
+      if (pause) await speedSleep(pause);
     }
 
     await ollama.refresh();
@@ -177,15 +190,15 @@
 
     boot.phase = "warm";
     if (ollama.error) {
-      await chat.typeSystem(`// ollama .............. unreachable (${ollama.error})`);
+      await chat.typeSystem(`// ghetti .............. unreachable (${ollama.error})`);
     } else if (ollama.models.length === 0) {
-      await chat.typeSystem("// ollama .............. no models installed");
+      await chat.typeSystem("// ghetti .............. no models installed");
     } else if (ollama.chatModels.length === 0) {
-      await chat.typeSystem("// ollama .............. only embedding models installed");
+      await chat.typeSystem("// ghetti .............. only embedding models installed");
     } else {
-      await chat.typeSystem("// ollama ............... ok");
+      await chat.typeSystem("// ghetti ............... ok");
     }
-    await sleep(600);
+    await speedSleep(600);
 
     boot.phase = "online";
     logEvent({
@@ -193,7 +206,9 @@
       model: selectedModel,
       models_available: ollama.chatModels.length,
     });
-    await sleep(500);
+    // Start the agent's "anxiety" — never sit idle after this point.
+    work.start();
+    await speedSleep(500);
 
     await chat.typeAgent("Are you still there?");
     scheduleSilenceProbe(0);
@@ -244,7 +259,7 @@
       busy = false;
     }
 
-    await sleep(settleMs);
+    await speedSleep(settleMs);
     telemetry.completeFix(id);
     scene.phase = "open";
     logEvent({ type: "scene_phase", phase: "open", resolved: id });
@@ -326,7 +341,7 @@
     clearSilence();
 
     if (!selectedModel) {
-      await chat.typeSystem("// agent is offline — pick a model");
+      await chat.typeSystem("// agent is offline — pick a model from the header");
       scheduleSilenceProbe(0);
       return;
     }
@@ -385,6 +400,7 @@
       clearSilence();
       clearAutoPick();
       telemetry.stop();
+      work.stop();
     };
   });
 </script>

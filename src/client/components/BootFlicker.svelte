@@ -46,6 +46,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { flareBurst } from "../motion/flares";
+  import { speed } from "../stores/speed.svelte";
 
   /**
    * Flare bursts synced to the CSS flash keyframes.
@@ -56,10 +57,15 @@
    * glowing halos from the top-left corner where the loading indicators
    * live, rather than gravity-driven sparks that would fall to the floor.
    *
-   * Times are derived from the 13000ms animation duration:
-   *   FLASH 1 at 17%  →  2210ms,   5 flares,  intensity 1.0
-   *   FLASH 2 at 50%  →  6500ms,   9 flares,  intensity 1.3
-   *   FLASH 3 at 73%  →  9490ms,  18 flares,  intensity 1.8   ← STRIKE
+   * Speed scaling: the global speed multiplier is captured at mount and
+   * applied to both the CSS animation duration (via an inline style)
+   * and the JS burst timeouts. If the slider is set to 5× speed, the
+   * whole flicker runs in ~2.6s instead of 13s, including the bursts.
+   *
+   * Burst timings are derived from the base 13000ms timeline:
+   *   FLASH 1 at 17%  →   5 flares,  intensity 1.0
+   *   FLASH 2 at 50%  →   9 flares,  intensity 1.3
+   *   FLASH 3 at 73%  →  18 flares,  intensity 1.8   ← STRIKE
    *
    * Origin point is the centre of the `.light` element (the blinking
    * status dot in the header), looked up at burst time so the bursts
@@ -69,10 +75,15 @@
    * Intensity scales size and drift but NOT lifetime, so the strike feels
    * bigger without dragging out.
    */
-  const BURSTS: Array<{ delay: number; count: number; intensity: number }> = [
-    { delay: 2_210, count: 5,  intensity: 1.0 },
-    { delay: 6_500, count: 9,  intensity: 1.3 },
-    { delay: 9_490, count: 18, intensity: 1.8 },
+  const BASE_DURATION_MS = 13_000;
+  // Capture at mount — CSS animation runs to its own schedule, so once
+  // we hand it a duration the value is fixed for this run.
+  const totalMs = BASE_DURATION_MS * speed.multiplier;
+
+  const BURSTS: Array<{ pct: number; count: number; intensity: number }> = [
+    { pct: 0.17, count: 5,  intensity: 1.0 },
+    { pct: 0.50, count: 9,  intensity: 1.3 },
+    { pct: 0.73, count: 18, intensity: 1.8 },
   ];
 
   function originFromLightOrFallback(): { x: number; y: number } {
@@ -87,11 +98,11 @@
 
   onMount(() => {
     const handles: ReturnType<typeof setTimeout>[] = [];
-    for (const { delay, count, intensity } of BURSTS) {
+    for (const { pct, count, intensity } of BURSTS) {
       handles.push(setTimeout(() => {
         const { x, y } = originFromLightOrFallback();
         flareBurst(x, y, count, { intensity });
-      }, delay));
+      }, totalMs * pct));
     }
     return () => {
       for (const h of handles) clearTimeout(h);
@@ -99,8 +110,8 @@
   });
 </script>
 
-<div class="flicker"></div>
-<div class="electric"></div>
+<div class="flicker" style="animation-duration: {totalMs}ms"></div>
+<div class="electric" style="animation-duration: {totalMs}ms"></div>
 
 <style>
   .flicker {

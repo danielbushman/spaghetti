@@ -28,6 +28,7 @@ import {
   wordBoundaryPauseMs,
 } from "../motion/typing";
 import { logEvent } from "../log";
+import { speed } from "./speed.svelte";
 
 export type Role = "system" | "user" | "agent";
 
@@ -45,12 +46,12 @@ function sleep(ms: number): Promise<void> {
 /**
  * Reduce a chat-failure response body to a single readable line.
  *
- * Our /api/chat wraps Ollama errors as `{"error": "ollama returned 400: {...}"}`,
- * where the inner `{...}` is another JSON document with Ollama's own
- * `{"error": "..."}` message. We dig through both layers so the surfaced
- * line reads as the human cause, not the transport.
+ * Our /api/chat wraps the upstream's errors as
+ * `{"error": "ghetti returned 400: {...}"}`, where the inner `{...}` is
+ * the upstream's own `{"error": "..."}` message. We dig through both
+ * layers so the surfaced line reads as the human cause, not the transport.
  *
- *   raw body:       {"error":"ollama returned 400: {\"error\":\"\\\"foo\\\" does not support chat\"}"}
+ *   raw body:       {"error":"ghetti returned 400: {\"error\":\"\\\"foo\\\" does not support chat\"}"}
  *   surfaced line:  "foo" does not support chat
  */
 function prettyChatError(body: string, status: number, statusText: string): string {
@@ -58,7 +59,7 @@ function prettyChatError(body: string, status: number, statusText: string): stri
   try {
     const env = JSON.parse(body) as { error?: string };
     const outer = env.error ?? body;
-    const innerMatch = outer.match(/^ollama returned \d+: (\{.*\})$/);
+    const innerMatch = outer.match(/^ghetti returned \d+: (\{.*\})$/);
     if (innerMatch) {
       try {
         const inner = JSON.parse(innerMatch[1]) as { error?: string };
@@ -325,13 +326,16 @@ class ChatStore {
           m.visible = m.target.slice(0, m.visible.length + 1);
           const remaining = backlog - 1;
           const base = adaptiveCharDelayMs(ch, remaining);
+          // Apply the global speed multiplier to every effective delay
+          // so the speed slider scales the typing in real-time.
+          const scale = speed.multiplier;
           if (remaining > 20) {
-            await sleep(base); // fast flush — skip the layered modulators
+            await sleep(base * scale); // fast flush — skip the layered modulators
           } else {
             const breath = rhythmModulator(performance.now());
             const boundary = wordBoundaryPauseMs(ch, prevCh);
             const think = thinkingPauseMs(ch, prevCh, m.visible);
-            await sleep(base * breath + boundary + think);
+            await sleep((base * breath + boundary + think) * scale);
           }
           prevCh = ch;
         } else if (receiveDone) {
@@ -351,7 +355,7 @@ class ChatStore {
     while (m.visible.length < m.target.length) {
       const ch = m.target[m.visible.length];
       m.visible = m.target.slice(0, m.visible.length + 1);
-      await sleep(charDelayMs(ch));
+      await sleep(charDelayMs(ch) * speed.multiplier);
     }
   }
 

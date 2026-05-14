@@ -50,7 +50,7 @@ async function listModels(): Promise<Response> {
     const r = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
     if (!r.ok) {
       return json(
-        { error: `ollama returned ${r.status}`, models: [] },
+        { error: `ghetti returned ${r.status}`, models: [] },
         502,
       );
     }
@@ -61,7 +61,7 @@ async function listModels(): Promise<Response> {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return json(
-      { error: `could not reach Ollama at ${OLLAMA_BASE_URL}: ${msg}`, models: [] },
+      { error: `could not reach ghetti at ${OLLAMA_BASE_URL}: ${msg}`, models: [] },
       502,
     );
   }
@@ -83,7 +83,7 @@ async function chatStream(req: Request): Promise<Response> {
     });
     if (!r.ok || !r.body) {
       const text = await r.text().catch(() => "");
-      return json({ error: `ollama returned ${r.status}: ${text}` }, 502);
+      return json({ error: `ghetti returned ${r.status}: ${text}` }, 502);
     }
     return new Response(r.body, {
       headers: {
