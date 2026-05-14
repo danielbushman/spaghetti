@@ -31,6 +31,7 @@
     CHECKIN_INSTRUCTION,
     TRIAGE_ADDENDUM,
     FIX_ACKNOWLEDGE_ADDENDUM,
+    AUTO_PICK_ADDENDUM,
   } from "./agent";
 
   const MODEL_KEY = "spaghetti.model";
@@ -49,6 +50,32 @@
 
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let priorCheckins: string[] = [];
+
+  /**
+   * Auto-pick timer. Started when scene enters triage; if the operator
+   * hasn't picked an item by the time it fires, the agent picks halberd-
+   * monitor for them (the bleeder, the stated default). True idler — if
+   * the operator just chats around the choice, the agent makes it and
+   * moves forward. Decision is amplification, not a gate.
+   */
+  let autoPickTimer: ReturnType<typeof setTimeout> | null = null;
+  const AUTO_PICK_DEFAULT_ID = "halberd-monitor";
+
+  function clearAutoPick(): void {
+    if (autoPickTimer !== null) {
+      clearTimeout(autoPickTimer);
+      autoPickTimer = null;
+    }
+  }
+
+  function scheduleAutoPick(): void {
+    clearAutoPick();
+    // Randomized 30-60s window so the auto-pick doesn't feel mechanical.
+    // Short enough for an idle operator to feel the game moving; long
+    // enough that someone reading the triage message has time to respond.
+    const delay = 30_000 + Math.random() * 30_000;
+    autoPickTimer = setTimeout(runAutoPick, delay);
+  }
 
   function sleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms));
@@ -172,37 +199,78 @@
   };
 
   /**
-   * Operator picked a status item — either via click on the side panel or
-   * via a fuzzy name match on a typed message. Bypasses the queue: if busy,
-   * we return early and let the typed message stay queued; the click path
-   * is gated by the disabled state on the button.
+   * Core fix-flow: agent acknowledges (or commits to) a pick, the item
+   * pulses amber, and after a settle interval flips green. Both manual
+   * picks and auto-picks route through this. The addendum and settle
+   * time differ — manual picks feel sharper because the operator's
+   * decision amplifies the system.
    */
-  async function onPickStatus(id: string): Promise<void> {
-    if (scene.phase !== "triage" || busy) return;
+  async function runFixFlow(
+    id: string,
+    addendum: string,
+    settleMs: number,
+  ): Promise<void> {
+    if (scene.phase !== "triage" && scene.phase !== "triage_intro") return;
+    if (busy) return;
     const it = telemetry.statusItems.find((x) => x.id === id);
     if (!it || it.state !== "red") return;
     if (!selectedModel) return;
 
+    clearAutoPick();
     scene.phase = "acting";
     telemetry.startFixing(id);
     clearSilence();
 
     busy = true;
     try {
-      await chat.streamAgentTurn(
-        selectedModel,
-        AGENT_OPTS,
-        FIX_ACKNOWLEDGE_ADDENDUM(id, it.label),
-      );
+      await chat.streamAgentTurn(selectedModel, AGENT_OPTS, addendum);
     } finally {
       busy = false;
     }
 
-    // Brief settle so the operator can see the working-pulse before it flips.
-    await sleep(2500);
+    await sleep(settleMs);
     telemetry.completeFix(id);
     scene.phase = "open";
     scheduleSilenceProbe(0);
+  }
+
+  /**
+   * Operator picked a status item — either via click on the side panel
+   * or via a fuzzy name match on a typed message. Manual pick: 2.2s
+   * fix animation (snappier — the operator decided).
+   */
+  async function onPickStatus(id: string): Promise<void> {
+    const it = telemetry.statusItems.find((x) => x.id === id);
+    if (!it) return;
+    await runFixFlow(id, FIX_ACKNOWLEDGE_ADDENDUM(id, it.label), 2200);
+  }
+
+  /**
+   * Auto-pick: the agent moves forward on the stated default
+   * (halberd-monitor) because the operator hasn't redirected. Slightly
+   * slower fix animation (3.5s) than a manual pick — small visible
+   * difference, signals that operator decisions amplify the system.
+   *
+   * Defers if busy (e.g. mid-stream of another turn) — retries shortly.
+   * Bails cleanly if the scene has moved on (operator picked something
+   * else just as the timer fired, etc).
+   */
+  async function runAutoPick(): Promise<void> {
+    autoPickTimer = null;
+    if (scene.phase !== "triage") return;
+    if (busy) {
+      autoPickTimer = setTimeout(runAutoPick, 3000 + Math.random() * 2000);
+      return;
+    }
+    const target = telemetry.statusItems.find(
+      (x) => x.id === AUTO_PICK_DEFAULT_ID && x.state === "red",
+    );
+    if (!target) return;
+    await runFixFlow(
+      target.id,
+      AUTO_PICK_ADDENDUM(target.id, target.label),
+      3500,
+    );
   }
 
   /**
@@ -269,6 +337,9 @@
       if (scene.phase === "triage_intro") {
         telemetry.revealStatus();
         scene.phase = "triage";
+        // Start the auto-pick countdown the moment status items are
+        // revealed. Cancelled by any subsequent pick (manual or auto).
+        scheduleAutoPick();
       }
       scheduleSilenceProbe(0);
     }
@@ -291,6 +362,7 @@
     runBoot();
     return () => {
       clearSilence();
+      clearAutoPick();
       telemetry.stop();
     };
   });

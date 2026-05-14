@@ -73,11 +73,14 @@ The three:
 In your next turn:
 - Tell the operator you've pulled diagnostics. Plain language, in voice.
 - Name all three things. One short clause each for what each does. NO bullet list — write it as prose with the names dropped in. Names lowercase, hyphenated, in the conversation flow.
-- End by asking which one the operator wants to take first. Make it feel like their call, not a quiz.
+- Make halberd-monitor your stated default. Say plainly you're going to start there (it's the bleeder, the renewal risk) unless they want to redirect. Phrasing like "I'm going to start on halberd unless you'd rather I look somewhere else" — a partner moving forward, not asking permission.
 - 3 to 4 sentences total. No emoji, no markdown.
 `;
 
-export const FIX_ACKNOWLEDGE_ADDENDUM = (id: string, label: string) => `The operator just picked ${label}. Acknowledge their call in one or two short sentences. In voice: like a partner agreeing with the choice. Mention something concrete you're going to do (look at the last hour of logs, restart it, re-run its last cycle — pick one that fits ${id}). One short reassurance that the other two can wait a minute. Stay tight, no markdown, no list.
+export const FIX_ACKNOWLEDGE_ADDENDUM = (id: string, label: string) => `The operator just picked ${label}. Acknowledge their call in one or two short sentences. In voice: a partner agreeing with the choice, slightly energized — their decision actually helped you focus. Mention something concrete you're going to do (look at the last hour of logs, restart it, re-run its last cycle — pick one that fits ${id}). One short reassurance that the other two can wait a minute. Stay tight, no markdown, no list.
+`;
+
+export const AUTO_PICK_ADDENDUM = (id: string, label: string) => `The operator didn't redirect you, so you're moving forward on ${label} — the default you flagged. One or two short sentences in voice: like a partner saying "right, taking it now" — not asking permission, not formal, slightly more methodical than if they had explicitly told you to go. Name something specific you'll do (look at the last hour of logs, restart it, re-run its last cycle — pick what fits ${id}). Brief mention that the others can wait. Stay tight. No markdown.
 `;
 
 export const CHECKIN_INSTRUCTION = `The operator has gone silent. Send ONE short sentence (max 14 words) in character.
