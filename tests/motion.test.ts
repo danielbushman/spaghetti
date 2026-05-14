@@ -27,6 +27,7 @@ import {
   adaptiveCharDelayMs,
   charDelayMs,
   rhythmModulator,
+  thinkingPauseMs,
   wordBoundaryPauseMs,
 } from "../src/client/motion/typing";
 
@@ -197,6 +198,56 @@ describe("typewriter cadence", () => {
       count++;
     }
     expect(sum / count).toBeCloseTo(1, 1); // ±0.05
+  });
+
+  test("thinking pause fires unconditionally after an ellipsis", () => {
+    // Last "." of "..." → always returns positive
+    for (let i = 0; i < 50; i++) {
+      const v = thinkingPauseMs(".", ".", "Well...");
+      expect(v).toBeGreaterThan(0);
+      expect(v).toBeLessThan(900);
+    }
+  });
+
+  test("thinking pause fires unconditionally after em-dash + space", () => {
+    for (let i = 0; i < 50; i++) {
+      const v = thinkingPauseMs(" ", "—", "I — ");
+      expect(v).toBeGreaterThan(0);
+      expect(v).toBeLessThan(800);
+    }
+    // Also handles en-dash
+    expect(thinkingPauseMs(" ", "–", "I – ")).toBeGreaterThan(0);
+  });
+
+  test("thinking pause is probabilistic at sentence start, mostly silent elsewhere", () => {
+    // Sample ~22% of sentences should pause at one of the first 3 letters,
+    // so across many independent samples at a sentence-start position, we
+    // should see a meaningful but minority rate.
+    let sentenceStartHits = 0;
+    for (let i = 0; i < 2000; i++) {
+      if (thinkingPauseMs("e", "h", "Yes. The") > 0) sentenceStartHits++;
+    }
+    expect(sentenceStartHits).toBeGreaterThan(80);   // > 4%
+    expect(sentenceStartHits).toBeLessThan(400);     // < 20%
+
+    // In normal mid-prose flow (no recent punctuation), the only trigger
+    // is the rare word-boundary roll. For a letter (not a space), it
+    // should basically never fire.
+    let midFlowHits = 0;
+    for (let i = 0; i < 2000; i++) {
+      if (thinkingPauseMs("e", "n", "agent reply continues") > 0) midFlowHits++;
+    }
+    expect(midFlowHits).toBe(0);
+  });
+
+  test("thinking pause occasionally fires at a word boundary in flow", () => {
+    let hits = 0;
+    for (let i = 0; i < 5000; i++) {
+      if (thinkingPauseMs(" ", "r", "the agent works hard or") > 0) hits++;
+    }
+    // ~2% expected; bound generously to avoid flake.
+    expect(hits).toBeGreaterThan(40);
+    expect(hits).toBeLessThan(250);
   });
 
   test("word-boundary pause fires only after a word", () => {

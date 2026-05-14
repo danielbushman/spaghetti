@@ -51,6 +51,71 @@ export function wordBoundaryPauseMs(ch: string, prevCh: string | null): number {
 }
 
 /**
+ * "Thinking" pause — extra delay that fires at specific syntactic positions
+ * where a real typist visibly hesitates. Returns ms to add to the base
+ * delay (which already includes the standard punctuation pauses).
+ *
+ * Triggers:
+ *
+ *   ellipsis complete    — last dot of "..."           always       300-800
+ *   em-dash + space      — " — " just typed             always       250-650
+ *   post-sentence-start  — 1st-3rd letter of new sent.  8% per chr   180-500
+ *   post-comma           — 1st-2nd letter after ", "    5% per chr   120-320
+ *   mid-flow word break  — space after non-space        2% per chr   180-460
+ *
+ * The unconditional triggers (ellipsis, em-dash) are explicit pause signals
+ * the LLM already uses for effect, so we honor them every time. The
+ * probabilistic triggers (post-sentence, post-comma, mid-flow) compound
+ * across positions: roughly ~22% of sentences get a post-start hesitation,
+ * ~10% of commas, ~2% of word boundaries. Subtle but registers as character.
+ *
+ * `recentText` is what's already been typed (m.visible at call time,
+ * including the just-emitted ch). The regex anchors look at the trailing
+ * pattern to determine syntactic position.
+ */
+export function thinkingPauseMs(
+  ch: string,
+  prevCh: string | null,
+  recentText: string,
+): number {
+  // Ellipsis complete: just typed the last "." of "...". Long pause —
+  // the writer is gathering thought.
+  if (ch === "." && recentText.endsWith("...")) {
+    return 300 + Math.random() * 500;
+  }
+
+  // Em-dash + space: " — " or " – ". The dash itself implies a break,
+  // and the writer almost always pauses before resuming. Unicode covers
+  // both em-dash (U+2014) and en-dash (U+2013) in case the LLM emits either.
+  if (ch === " " && (prevCh === "—" || prevCh === "–")) {
+    return 250 + Math.random() * 400;
+  }
+
+  // Post-sentence-start: just typed the 1st, 2nd, or 3rd letter of a new
+  // sentence (period/?/! + whitespace + 1-3 word chars at end). The pattern
+  // requires the trailing chars to be all \w, so this only fires once per
+  // sentence-start window.
+  if (/\w/.test(ch) && /[.!?]\s+\w{1,3}$/.test(recentText)) {
+    if (Math.random() < 0.08) return 180 + Math.random() * 320;
+  }
+
+  // Post-comma: just typed 1st or 2nd letter following ", ". The writer
+  // collected thought during the comma; the pause sometimes spills into
+  // the start of the next clause.
+  if (/\w/.test(ch) && /,\s+\w{1,2}$/.test(recentText)) {
+    if (Math.random() < 0.05) return 120 + Math.random() * 200;
+  }
+
+  // Random mid-flow think — at a word boundary (space after a word char).
+  // Rare enough not to feel like the typewriter is constantly stalling.
+  if (ch === " " && prevCh !== null && /\w/.test(prevCh)) {
+    if (Math.random() < 0.02) return 180 + Math.random() * 280;
+  }
+
+  return 0;
+}
+
+/**
  * Backlog-aware typewriter delay. Use when characters are arriving from a
  * stream and the producer might outrun the display.
  *

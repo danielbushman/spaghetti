@@ -24,6 +24,7 @@ import {
   adaptiveCharDelayMs,
   charDelayMs,
   rhythmModulator,
+  thinkingPauseMs,
   wordBoundaryPauseMs,
 } from "../motion/typing";
 
@@ -283,16 +284,19 @@ class ChatStore {
 
     // Display: drain target → visible at typewriter cadence.
     //
-    // Four signals compose the per-char delay:
+    // Five signals compose the per-char delay:
     //   1. `adaptiveCharDelayMs` — base shape scaled by buffer pressure.
     //      When Ollama runs ahead, the floor drops so we don't perceptibly
     //      lag the model.
     //   2. `rhythmModulator` — slow sine wave around 1.0; gives the cadence
     //      natural ebb and flow without changing the average.
     //   3. `wordBoundaryPauseMs` — added beat after a word ends.
-    //   4. Backlog gate — when the buffer is large (> 20 chars), we're in
-    //      catch-up mode; skip the breath and word-end beats so the flush
-    //      stays fast.
+    //   4. `thinkingPauseMs` — extra delay at syntactic positions where a
+    //      real typist hesitates (post-sentence-start, post-comma, ellipsis,
+    //      em-dash, occasional mid-flow word break).
+    //   5. Backlog gate — when the buffer is large (> 20 chars), we're in
+    //      catch-up mode; skip the breath, word-end, and thinking pauses
+    //      so the flush stays fast.
     const display = async (): Promise<void> => {
       let prevCh: string | null = null;
       while (true) {
@@ -303,11 +307,12 @@ class ChatStore {
           const remaining = backlog - 1;
           const base = adaptiveCharDelayMs(ch, remaining);
           if (remaining > 20) {
-            await sleep(base); // fast flush — skip breath / boundary
+            await sleep(base); // fast flush — skip the layered modulators
           } else {
             const breath = rhythmModulator(performance.now());
             const boundary = wordBoundaryPauseMs(ch, prevCh);
-            await sleep(base * breath + boundary);
+            const think = thinkingPauseMs(ch, prevCh, m.visible);
+            await sleep(base * breath + boundary + think);
           }
           prevCh = ch;
         } else if (receiveDone) {
