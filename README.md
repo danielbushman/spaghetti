@@ -29,11 +29,12 @@ Scaffold only. This commit lands:
 ```sh
 # one-time setup
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate          # Windows (cmd): .venv\Scripts\activate
+                                   # Windows (PowerShell): .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 
 # make sure ollama is up and has a model
-ollama serve &
+ollama serve &                     # Windows: run `ollama serve` in a second terminal
 ollama pull llama3.2
 
 # launch the game
@@ -52,7 +53,7 @@ spaghetti
 
 ## Layout
 
-```
+```text
 src/spaghetti/
 ├── __main__.py        # entrypoint
 ├── app.py             # Textual App + awakening screen

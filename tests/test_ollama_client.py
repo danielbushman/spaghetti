@@ -11,7 +11,6 @@ from spaghetti.ollama_client import OllamaClient, OllamaError
 def _client_with_handler(handler) -> OllamaClient:
     client = OllamaClient()
     # Replace the live client with a MockTransport-backed one, keeping the base_url.
-    # Closing the real one first avoids an unclosed-client warning.
     base_url = client.base_url
     client._client._transport = httpx.MockTransport(handler)
     client._client.base_url = httpx.URL(base_url)
