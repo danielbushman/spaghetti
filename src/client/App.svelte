@@ -20,6 +20,9 @@
   import { boot } from "./stores/boot.svelte";
   import { AWAKENING_SYSTEM_PROMPT, CHECKIN_INSTRUCTION } from "./agent";
 
+  /** localStorage key for the operator's preferred Ollama model. */
+  const MODEL_KEY = "spaghetti.model";
+
   let selectedModel = $state<string | null>(null);
   let busy = $state(false);
 
@@ -29,6 +32,21 @@
   function sleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms));
   }
+
+  function readStoredModel(): string | null {
+    try {
+      return localStorage.getItem(MODEL_KEY);
+    } catch {
+      return null; // private mode, storage disabled, etc.
+    }
+  }
+
+  // Persist the operator's selection across reloads. The guard avoids writing
+  // null during the brief window before runBoot picks a default.
+  $effect(() => {
+    if (!selectedModel) return;
+    try { localStorage.setItem(MODEL_KEY, selectedModel); } catch {}
+  });
 
   function clearSilence(): void {
     if (silenceTimer !== null) {
@@ -98,21 +116,28 @@
     }
 
     await ollama.refresh();
-    if (ollama.models.length > 0 && !selectedModel) {
-      selectedModel = ollama.models[0].name;
+
+    // Pick a model: prefer the operator's saved choice if still installed,
+    // else the first chat-capable model. Embedding-only models would 404 the
+    // first turn, so they're filtered out of the default pick.
+    const stored = readStoredModel();
+    if (stored && ollama.models.some((m) => m.name === stored)) {
+      selectedModel = stored;
+    } else {
+      selectedModel = ollama.chatModels[0]?.name ?? null;
     }
 
     boot.phase = "warm";
     if (ollama.error) {
       await chat.typeSystem(`// ollama .............. unreachable (${ollama.error})`);
-      await sleep(600);
     } else if (ollama.models.length === 0) {
       await chat.typeSystem("// ollama .............. no models installed");
-      await sleep(600);
+    } else if (ollama.chatModels.length === 0) {
+      await chat.typeSystem("// ollama .............. only embedding models installed");
     } else {
       await chat.typeSystem("// ollama ............... ok");
-      await sleep(600);
     }
+    await sleep(600);
 
     boot.phase = "online";
     await sleep(500);

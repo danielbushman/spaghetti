@@ -9,19 +9,20 @@
  *
  * `history` is what we send to Ollama. It is *separate* from `messages`:
  * system-log lines ("// ollama: ok") never go to the LLM.
+ *
+ * Why Message is a class, not a POJO:
+ *   When you push a plain object into a `$state` array, Svelte 5 wraps the
+ *   array in a proxy and lazily wraps objects accessed through it. Mutations
+ *   on the *original* reference (the one we kept after pushing) bypass that
+ *   proxy and don't trigger reactivity. Class instance fields decorated with
+ *   `$state` runes have per-field reactive accessors, so any reference —
+ *   original or re-fetched — mutates reactively. This eliminated a bug
+ *   where `message.typing = false` looked correct in state but the cursor
+ *   stayed in the DOM forever.
  */
 import { charDelayMs } from "../motion/typing";
 
 export type Role = "system" | "user" | "agent";
-
-export type Message = {
-  id: number;
-  role: Role;
-  visible: string;
-  target: string;
-  typing: boolean;
-  ts: number;
-};
 
 type HistoryEntry = {
   role: "system" | "user" | "assistant";
@@ -34,6 +35,29 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+export class Message {
+  readonly id: number;
+  readonly ts: number;
+  role = $state<Role>("system");
+  visible = $state("");
+  target = $state("");
+  typing = $state(false);
+
+  constructor(init: {
+    role: Role;
+    visible?: string;
+    target?: string;
+    typing?: boolean;
+  }) {
+    this.id = nextId++;
+    this.ts = Date.now();
+    this.role = init.role;
+    this.visible = init.visible ?? "";
+    this.target = init.target ?? "";
+    this.typing = init.typing ?? false;
+  }
+}
+
 class ChatStore {
   messages = $state<Message[]>([]);
   history = $state<HistoryEntry[]>([]);
@@ -44,14 +68,9 @@ class ChatStore {
 
   /** User message lands instantly — no typewriter for what they themselves wrote. */
   pushUserInstant(text: string): void {
-    this.messages.push({
-      id: nextId++,
-      role: "user",
-      visible: text,
-      target: text,
-      typing: false,
-      ts: Date.now(),
-    });
+    this.messages.push(
+      new Message({ role: "user", visible: text, target: text, typing: false }),
+    );
     this.history.push({ role: "user", content: text });
   }
 
@@ -65,15 +84,12 @@ class ChatStore {
     return this.typeIn("agent", text, /* recordHistory */ true);
   }
 
-  private async typeIn(role: Role, text: string, recordHistory: boolean): Promise<void> {
-    const m: Message = {
-      id: nextId++,
-      role,
-      visible: "",
-      target: text,
-      typing: true,
-      ts: Date.now(),
-    };
+  private async typeIn(
+    role: Role,
+    text: string,
+    recordHistory: boolean,
+  ): Promise<void> {
+    const m = new Message({ role, target: text, typing: true });
     this.messages.push(m);
     await this.pump(m);
     m.typing = false;
@@ -87,15 +103,11 @@ class ChatStore {
    * `target` as they arrive; the typewriter pump drains `target` → `visible`
    * at typing cadence. Returns when both the stream and the pump are done.
    */
-  async streamAgentTurn(model: string, options?: Record<string, unknown>): Promise<void> {
-    const m: Message = {
-      id: nextId++,
-      role: "agent",
-      visible: "",
-      target: "",
-      typing: true,
-      ts: Date.now(),
-    };
+  async streamAgentTurn(
+    model: string,
+    options?: Record<string, unknown>,
+  ): Promise<void> {
+    const m = new Message({ role: "agent", typing: true });
     this.messages.push(m);
 
     const { error } = await this.runStreamingInto(m, this.history, model, options);
@@ -130,14 +142,7 @@ class ChatStore {
     model: string,
     instruction: string,
   ): Promise<string | null> {
-    const m: Message = {
-      id: nextId++,
-      role: "agent",
-      visible: "",
-      target: "",
-      typing: true,
-      ts: Date.now(),
-    };
+    const m = new Message({ role: "agent", typing: true });
     this.messages.push(m);
 
     const checkinHistory: HistoryEntry[] = [
@@ -154,18 +159,18 @@ class ChatStore {
       presence_penalty: 0.6,
       frequency_penalty: 0.5,
     });
+    m.typing = false;
 
     if (error) {
       this.removeMessage(m.id);
       return null;
     }
 
-    let final = m.target.trim().replace(/^"+|"+$/g, "");
+    const final = m.target.trim().replace(/^"+|"+$/g, "");
     if (!final || final.toLowerCase().startsWith("are you still")) {
       this.removeMessage(m.id);
       return null;
     }
-    m.typing = false;
     this.history.push({ role: "assistant", content: final });
     return final;
   }
@@ -217,7 +222,7 @@ class ChatStore {
                 done?: boolean;
               };
               const tok = data.message?.content ?? "";
-              if (tok) m.target += tok;
+              if (tok) m.target = m.target + tok;
               if (data.done) return;
             } catch {
               // Non-JSON line — skip.

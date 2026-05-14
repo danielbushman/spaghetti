@@ -18,6 +18,7 @@
   let el: HTMLDivElement | undefined = $state();
   let cursorOn = $state(true);
 
+  // Entry motion (one-shot). The component never replays this on prop change.
   onMount(() => {
     if (!el) return;
     const startX =
@@ -38,13 +39,16 @@
     }
     raf = requestAnimationFrame(frame);
 
-    // Cursor blink while typing. setInterval not RAF — 500ms is too slow to bother.
-    const blinker = setInterval(() => { cursorOn = !cursorOn; }, 500);
+    return () => cancelAnimationFrame(raf);
+  });
 
-    return () => {
-      cancelAnimationFrame(raf);
-      clearInterval(blinker);
-    };
+  // Cursor blink, scoped to the typing window. The $effect cleanup runs when
+  // `message.typing` flips false (or the component unmounts), so the interval
+  // doesn't outlive the cursor it animates.
+  $effect(() => {
+    if (!message.typing) return;
+    const blinker = setInterval(() => { cursorOn = !cursorOn; }, 500);
+    return () => clearInterval(blinker);
   });
 
   let prefix = $derived(
