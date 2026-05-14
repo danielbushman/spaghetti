@@ -43,6 +43,8 @@ spaghetti.state.json
 # CrewChief runtime state
 .crewchief/
 .crewchief-meta.json
+crewchief.config.js
+crewchief.config.local.js
 
 # Web build artifacts
 node_modules/
