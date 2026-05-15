@@ -16,4 +16,5 @@ export {
   type Spatial,
   type SentencePunct,
   type PlayBufferOptions,
+  type StrikeVariant,
 } from "./sounds";

@@ -250,30 +250,54 @@ export function playCrack(intensity = 0.5, spatial?: Spatial): void {
    has air). Used at the final boot flash.
    ──────────────────────────────────────────────────────────────────── */
 
-export function playStrike(intensity = 1, spatial?: Spatial): void {
+/**
+ * Strike options. `variant` selects between A/B sound-design tests:
+ *
+ *   A (default) — sub-bass body and bright crack fire at the same
+ *                 instant. One unified hit.
+ *   B           — bright crack on time; sub-bass body delayed by
+ *                 80 ms. Like real thunder where the bolt's crack
+ *                 arrives, then the chest-thump rolls in a fraction
+ *                 of a second later. More cinematic, less single-hit.
+ *
+ * The variant parameter exists for the replay-loop A/B compare flow
+ * (see stores/abtest.svelte.ts). Day-to-day callers can ignore it.
+ */
+export type StrikeVariant = "A" | "B";
+
+export function playStrike(
+  intensity = 1,
+  spatial?: Spatial,
+  options: { variant?: StrikeVariant } = {},
+): void {
   const ctx = audioEngine.context;
   const master = audioEngine.masterNode;
   if (!ctx || !master) return;
 
   const now = ctx.currentTime;
+  const subDelay = options.variant === "B" ? 0.08 : 0;
+  const subStart = now + subDelay;
 
   // Sub-bass body — sine with quick frequency drop for "thump".
+  // In variant B this entire envelope is shifted right by 80ms so
+  // the body arrives after the crack rather than under it.
   const sub = ctx.createOscillator();
   sub.type = "sine";
-  sub.frequency.setValueAtTime(110, now);
-  sub.frequency.exponentialRampToValueAtTime(45, now + 0.18);
+  sub.frequency.setValueAtTime(110, subStart);
+  sub.frequency.exponentialRampToValueAtTime(45, subStart + 0.18);
 
   const subEnv = ctx.createGain();
-  subEnv.gain.setValueAtTime(0, now);
-  subEnv.gain.linearRampToValueAtTime(0.35 * intensity, now + 0.005);
-  subEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+  subEnv.gain.setValueAtTime(0, subStart);
+  subEnv.gain.linearRampToValueAtTime(0.35 * intensity, subStart + 0.005);
+  subEnv.gain.exponentialRampToValueAtTime(0.001, subStart + 0.45);
 
   sub.connect(subEnv);
   connectThroughSpatial(subEnv, spatial, master);
-  sub.start(now);
-  sub.stop(now + 0.5);
+  sub.start(subStart);
+  sub.stop(subStart + 0.5);
 
-  // Bright crack — bandpass-filtered noise with rapid decay.
+  // Bright crack — bandpass-filtered noise with rapid decay. Always
+  // fires at `now`; only the sub-bass moves between variants.
   const noise = ctx.createBufferSource();
   noise.buffer = whiteNoiseBuffer(ctx, 0.12, 2.2);
 

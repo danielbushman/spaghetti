@@ -17,6 +17,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { loop } from "../stores/loop.svelte";
+  import { abtest } from "../stores/abtest.svelte";
 
   let { onrestart }: { onrestart: () => void } = $props();
 
@@ -75,6 +76,16 @@
 
   function onClearLoop(): void {
     loop.clearLoop();
+    // A/B compare without a loop is meaningless — clear it too so
+    // the big A/B overlay vanishes when the loop is stopped.
+    abtest.disable();
+    open = false;
+  }
+
+  function onToggleAB(): void {
+    if (!loop.active) return;
+    if (abtest.mode === "active") abtest.disable();
+    else abtest.enable();
     open = false;
   }
 </script>
@@ -126,6 +137,21 @@
       >
         <span class="glyph">✕</span>
         <span class="label">Stop looping</span>
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        class="item"
+        class:on={abtest.mode === "active"}
+        disabled={!loop.active}
+        onclick={onToggleAB}
+        title="Alternate A/B variants on each loop cycle"
+      >
+        <span class="glyph">⚖</span>
+        <span class="label">
+          Compare A/B
+          {#if abtest.mode === "active"}<span class="hint">(on · {abtest.current})</span>{/if}
+        </span>
       </button>
       <div class="footer">
         {#if loop.active}
@@ -252,12 +278,22 @@
     color: #2a4433;
     cursor: not-allowed;
   }
+  .item.on {
+    color: #66ffaa;
+  }
+  .item.on .glyph { color: #ffcc44; }
   .glyph {
     font-size: 0.95em;
     text-align: center;
   }
   .label {
     letter-spacing: 0.02em;
+  }
+  .hint {
+    margin-left: 0.4rem;
+    font-size: 0.82em;
+    color: #557755;
+    font-variant-numeric: tabular-nums;
   }
 
   .footer {

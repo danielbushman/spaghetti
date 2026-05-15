@@ -47,6 +47,7 @@
   import { onMount } from "svelte";
   import { flareBurst } from "../motion/flares";
   import { speed } from "../stores/speed.svelte";
+  import { abtest } from "../stores/abtest.svelte";
   import {
     playCrack,
     playStrike,
@@ -164,7 +165,17 @@
       } },
     { pct: 0.50, play: () => playCrack(0.85, spatialFromLight()) },
     { pct: 0.60, play: () => playPop(0.30, spatialFromLight()) },
-    { pct: 0.73, play: () => playStrike(1.0, spatialFromLight()) },
+    {
+      pct: 0.73,
+      play: () => {
+        // Read the A/B variant at fire-time, not at mount-time, so a
+        // toggle taking effect during a cycle still selects correctly.
+        // When A/B compare is off, default to "A" — same as the
+        // historical sound.
+        const variant = abtest.mode === "active" ? abtest.current : "A";
+        playStrike(1.0, spatialFromLight(), { variant });
+      },
+    },
   ];
 
   function originFromLightOrFallback(): { x: number; y: number } {

@@ -23,6 +23,7 @@
   import SideColumn from "./components/SideColumn.svelte";
   import PhotosensitivityWarning from "./components/PhotosensitivityWarning.svelte";
   import Goodbye from "./components/Goodbye.svelte";
+  import ABIndicator from "./components/ABIndicator.svelte";
   import { chat } from "./stores/chat.svelte";
   import { ollama } from "./stores/ollama.svelte";
   import { boot } from "./stores/boot.svelte";
@@ -33,6 +34,7 @@
   import { font } from "./stores/font.svelte";
   import { effects } from "./stores/effects.svelte";
   import { loop } from "./stores/loop.svelte";
+  import { abtest } from "./stores/abtest.svelte";
   import { audioEngine, syncAudioStoreToEngine } from "./audio";
   import {
     AWAKENING_SYSTEM_PROMPT,
@@ -580,6 +582,10 @@
       const target = loop.targetMs;
       if (target === null) return;
       if (loop.getElapsed() >= target) {
+        // If A/B compare is active, swap sides *before* the restart
+        // so the new cycle (with the freshly-remounted BootFlicker
+        // and freshly-scheduled audio cues) hears the new variant.
+        if (abtest.mode === "active") abtest.flip();
         restart({ autoContinue: true });
       }
     }, 250);
@@ -607,6 +613,14 @@
   {#key bootKey}
     <BootFlicker />
   {/key}
+  <!--
+    A/B-compare side indicator. Sits above the scene at z 300, below
+    the BlinkingLight (z 250 in scene context) and below modals, but
+    above the chat/header. Only renders when abtest.mode === 'active'
+    (component handles the gate internally) and is purely visual —
+    pointer-events: none.
+  -->
+  <ABIndicator />
   <!--
     Status-change flash overlay. Sits above the scene (z 200), under
     the BlinkingLight (z 250) so the light visibly pulses while the
