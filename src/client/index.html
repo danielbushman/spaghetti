@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>spaghetti :: awakening</title>
+    <!--
+      Six curated monospace fonts loaded via Google Fonts. The runtime
+      picker (FontSelect in the header, store in stores/font.svelte.ts)
+      switches between them by setting the --font-mono CSS variable on
+      documentElement; the body rule below reads from that variable.
+
+      All six load upfront with display=swap so the user can flip
+      between them instantly. Total payload is ~600KB compressed; modern
+      connections handle that in under a second.
+
+      Spectrum:
+        Space Mono        retro-modern typewriter (default)
+        JetBrains Mono    modern clean programmer
+        IBM Plex Mono     corporate-clean with character
+        Cutive Mono       classic typewriter
+        VT323             authentic CRT terminal (pixelated)
+        Major Mono        sparse futuristic
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Cutive+Mono&family=VT323&family=Major+Mono+Display&display=swap"
+      rel="stylesheet"
+    >
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #000; }
+      :root {
+        /* Default — overwritten at runtime from the font store. */
+        --font-mono: 'Space Mono', 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+      }
+      body {
+        font-family: var(--font-mono);
+        font-size: 14px;
+        line-height: 1.4;
+        color: #33ff66;
+        overflow: hidden;
+      }
+      #app { height: 100%; }
+      /*
+        CRT-ish scanlines — subtle, no blend mode. mix-blend-mode: multiply
+        forces a full-screen compositing pass that gets expensive as the
+        DOM grows (each text span counts toward the composite), and it
+        showed up as message-typing slowdown after a few turns. Plain
+        opacity on a transparent-banded gradient gives the same effect at
+        a fraction of the cost.
+      */
+      body::after {
+        content: '';
+        position: fixed; inset: 0;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          to bottom,
+          rgba(0,0,0,0) 0,
+          rgba(0,0,0,0) 2px,
+          rgba(0,0,0,0.10) 3px
+        );
+      }
+
+      /*
+        Spark particle base. Each spark is a body-appended div animated by
+        the Web Animation API (motion/sparks.ts). Inline styles set per-
+        instance size, color, position, and the WAAPI animation owns
+        transform + opacity.
+      */
+      .spark {
+        position: fixed;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 100;
+        will-change: transform, opacity;
+      }
+      /*
+        Bloom flares for the boot flashes — different particle type from
+        sparks. Soft radial-gradient halo, no gravity, blooms outward and
+        fades. The background and size are set per-instance by JS at spawn
+        (motion/flares.ts).
+      */
+      .flare {
+        position: fixed;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 100;
+        will-change: transform, opacity;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spark, .flare { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

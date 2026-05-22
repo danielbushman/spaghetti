@@ -1,0 +1,13 @@
+wds-version: "1.0.0"
+project: "spaghetti"
+created: "2026-05-21"
+rendering-tool: excalidraw
+
+phases:
+  product-brief: complete
+  trigger-map: not-started
+  ux-scenarios: not-started
+  ux-design: not-started
+  development: not-started
+
+output-folder: docs

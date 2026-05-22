@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
 from pydantic import BaseModel
 
-DEFAULT_BASE_URL = "http://127.0.0.1:11434"
+DEFAULT_BASE_URL = os.environ.get("OLLAMA_HOST") or "http://127.0.0.1:11434"
 
 
 class OllamaModel(BaseModel):
