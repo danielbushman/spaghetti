@@ -1,10 +1,10 @@
 wds-version: "1.0.0"
-project: ""
+project: "spaghetti"
 created: "2026-05-21"
 rendering-tool: excalidraw
 
 phases:
-  product-brief: not-started
+  product-brief: complete
   trigger-map: not-started
   ux-scenarios: not-started
   ux-design: not-started
