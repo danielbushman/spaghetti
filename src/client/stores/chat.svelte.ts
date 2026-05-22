@@ -119,6 +119,11 @@ class ChatStore {
   messages = $state<Message[]>([]);
   history = $state<HistoryEntry[]>([]);
 
+  // Incremented by reset(). In-flight streams capture this at entry and
+  // compare after each await — a mismatch means reset() fired mid-stream,
+  // so the continuation skips any state mutations (history push, logEvent).
+  private _epoch = 0;
+
   setSystemPrompt(p: string): void {
     this.history = [{ role: "system", content: p }];
   }
@@ -127,9 +132,11 @@ class ChatStore {
    * Wipe all chat state. Used by the soft-restart flow. Any in-flight
    * stream continues to write to its (now orphaned) Message instance
    * but those instances are no longer in `this.messages`, so they
-   * don't render.
+   * don't render. The epoch bump ensures their continuations skip
+   * history mutations and logEvents that would leak into the new session.
    */
   reset(): void {
+    this._epoch++;
     this.messages = [];
     this.history = [];
   }
@@ -186,6 +193,7 @@ class ChatStore {
     options?: Record<string, unknown>,
     systemAddendum?: string,
   ): Promise<void> {
+    const epoch = this._epoch;
     const m = new Message({ role: "agent", typing: true });
     this.messages.push(m);
 
@@ -195,6 +203,7 @@ class ChatStore {
 
     const { error } = await this.runStreamingInto(m, history, model, options);
     m.typing = false;
+    if (this._epoch !== epoch) return; // reset() during stream — m is orphaned; skip state mutations
 
     if (error) {
       m.role = "system";
@@ -234,6 +243,7 @@ class ChatStore {
     model: string,
     instruction: string,
   ): Promise<string | null> {
+    const epoch = this._epoch;
     const m = new Message({ role: "agent", typing: true });
     this.messages.push(m);
 
@@ -252,6 +262,7 @@ class ChatStore {
       frequency_penalty: 0.5,
     });
     m.typing = false;
+    if (this._epoch !== epoch) return null; // reset() during stream — skip state mutations
 
     if (error) {
       this.removeMessage(m.id);

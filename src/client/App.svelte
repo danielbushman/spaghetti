@@ -189,16 +189,19 @@
           ? `\n- Earlier check-ins (do not echo): ` +
             priorCheckins.slice(-3).map((p) => `"${p}"`).join("; ")
           : "";
+      const mySession = bootSession;
       busy = true;
+      let result: string | null = null;
       try {
-        const result = await chat.streamCheckin(
+        result = await chat.streamCheckin(
           selectedModel,
           CHECKIN_INSTRUCTION + avoid,
         );
-        if (result) priorCheckins.push(result);
       } finally {
         busy = false;
       }
+      if (mySession !== bootSession) return; // restart() fired during check-in
+      if (result) priorCheckins.push(result);
       scheduleSilenceProbe(round + 1);
     }, delay);
   }
@@ -318,6 +321,8 @@
     if (!it || it.state !== "red") return;
     if (!selectedModel) return;
 
+    const mySession = bootSession;
+
     clearAutoPick();
     scene.phase = "acting";
     logEvent({ type: "scene_phase", phase: "acting", picked: id });
@@ -334,8 +339,10 @@
     } finally {
       busy = false;
     }
+    if (mySession !== bootSession) return; // restart() fired during stream
 
     await speedSleep(settleMs);
+    if (mySession !== bootSession) return;
     telemetry.completeFix(id);
     // Same punctuation on the working → green transition; same id so
     // the resolving item gets spotlit a second time as it lands.
