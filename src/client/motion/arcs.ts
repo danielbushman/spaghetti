@@ -91,7 +91,8 @@ export function catmullRom(
   const scale = 2 - 2 * tension; // 2 when tension=0, 0 when tension=1
 
   return (t) => {
-    const clamped = Math.min(0.999999, Math.max(0, t));
+    if (t >= 1) return points[points.length - 1];
+    const clamped = Math.max(0, t);
     const u = clamped * segs;
     const i = Math.floor(u);
     const localT = u - i;

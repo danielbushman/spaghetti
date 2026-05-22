@@ -17,7 +17,7 @@ export async function buildClient(outdir = "dist/client"): Promise<void> {
     target: "browser",
     format: "esm",
     plugins: [sveltePlugin()],
-    splitting: false,
+    splitting: false, // single-page app — one bundle, no async chunks needed
     sourcemap: process.env.NODE_ENV === "production" ? "none" : "inline",
     minify: process.env.NODE_ENV === "production",
   });
@@ -28,7 +28,9 @@ export async function buildClient(outdir = "dist/client"): Promise<void> {
   }
 
   // index.html is hand-written; copy it next to the JS bundle.
-  await Bun.write(`${outdir}/index.html`, await Bun.file("src/client/index.html").text());
+  const htmlSrc = "src/client/index.html";
+  if (!existsSync(htmlSrc)) throw new Error(`missing ${htmlSrc}`);
+  await Bun.write(`${outdir}/index.html`, await Bun.file(htmlSrc).text());
 }
 
 if (import.meta.main) {

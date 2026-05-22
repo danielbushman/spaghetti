@@ -70,6 +70,10 @@ export function sveltePlugin(): BunPlugin {
           generate: "client",
           dev,
         });
+        for (const w of result.warnings ?? []) {
+          const where = w.start ? `${args.path}:${w.start.line}:${w.start.column}` : args.path;
+          console.warn(`[svelte] ${where}: ${w.message}`);
+        }
         return { contents: result.js.code, loader: "js" };
       });
     },

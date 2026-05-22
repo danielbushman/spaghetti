@@ -34,7 +34,7 @@ async function logRoute(req: Request): Promise<Response> {
     if (typeof body.sessionId !== "string" || body.sessionId.length === 0) {
       return new Response(null, { status: 400 });
     }
-    if (body.event === null || typeof body.event !== "object") {
+    if (body.event === null || typeof body.event !== "object" || Array.isArray(body.event)) {
       return new Response(null, { status: 400 });
     }
     await appendChatLog(body.sessionId, body.event as Record<string, unknown>);

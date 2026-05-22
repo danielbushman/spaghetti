@@ -189,15 +189,18 @@
   }
 
   onMount(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const handles: ReturnType<typeof setTimeout>[] = [];
-    for (const { pct, count, intensity } of BURSTS) {
-      handles.push(setTimeout(() => {
-        const { x, y } = originFromLightOrFallback();
-        flareBurst(x, y, count, { intensity });
-      }, totalMs * pct));
-    }
-    for (const { pct, play } of AUDIO_CUES) {
-      handles.push(setTimeout(play, totalMs * pct));
+    if (!reducedMotion) {
+      for (const { pct, count, intensity } of BURSTS) {
+        handles.push(setTimeout(() => {
+          const { x, y } = originFromLightOrFallback();
+          flareBurst(x, y, count, { intensity });
+        }, totalMs * pct));
+      }
+      for (const { pct, play } of AUDIO_CUES) {
+        handles.push(setTimeout(play, totalMs * pct));
+      }
     }
     return () => {
       for (const h of handles) clearTimeout(h);

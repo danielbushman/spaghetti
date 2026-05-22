@@ -11,7 +11,7 @@ This branch (`browser-version`) holds a browser port alongside the original
 Textual TUI. They share the same canon (prompts, voice, beats) but each owns
 its own rendering layer.
 
-```
+```text
 ┌─ src/spaghetti/         python — textual TUI       (run with `spaghetti` cli)
 ├─ src/server/            bun    — web server + ollama proxy
 ├─ src/client/            svelte — web ui

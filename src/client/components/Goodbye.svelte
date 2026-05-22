@@ -35,4 +35,11 @@
     0%   { opacity: 0; transform: scale(0.97); }
     100% { opacity: 1; transform: scale(1); }
   }
+  @media (prefers-reduced-motion: reduce) {
+    .word {
+      animation: none;
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 </style>

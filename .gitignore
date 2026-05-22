@@ -49,5 +49,3 @@ crewchief.config.local.js
 # Web build artifacts
 node_modules/
 dist/
-bun.lock
-bun.lockb

@@ -2,7 +2,8 @@
 export const OLLAMA_BASE_URL =
   process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
 
-export const PORT = Number(process.env.PORT ?? 5173);
+const _port = parseInt(process.env.PORT ?? "", 10);
+export const PORT = isNaN(_port) ? 5173 : _port;
 
 export const DIST_DIR = process.env.DIST_DIR ?? "dist/client";
 

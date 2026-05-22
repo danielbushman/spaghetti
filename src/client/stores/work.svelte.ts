@@ -75,6 +75,7 @@ class WorkStore {
   }
 
   private cycle(): void {
+    if (!this.active) return;
     if (this.timer) clearTimeout(this.timer);
     // Pick a different tool than the current one if possible.
     let next = TOOLS[Math.floor(Math.random() * TOOLS.length)];

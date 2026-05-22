@@ -37,15 +37,25 @@ class OllamaStore {
   models = $state<ModelInfo[]>([]);
   error = $state<string | null>(null);
 
+  private _refreshController: AbortController | null = null;
+
   /** Models that can serve /api/chat — embeddings filtered out. */
   get chatModels(): ModelInfo[] {
     return this.models.filter(isChatCapable);
   }
 
   async refresh(): Promise<void> {
+    this._refreshController?.abort();
+    const controller = new AbortController();
+    this._refreshController = controller;
     this.error = null;
     try {
-      const r = await fetch("/api/models");
+      const r = await fetch("/api/models", {
+        signal: AbortSignal.any
+          ? AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])
+          : controller.signal,
+      });
+      if (controller.signal.aborted) return;
       const data = (await r.json().catch(() => ({}))) as {
         models?: ModelInfo[];
         error?: string;
@@ -57,6 +67,7 @@ class OllamaStore {
       }
       this.models = data.models ?? [];
     } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
       this.error = e instanceof Error ? e.message : String(e);
       this.models = [];
     }

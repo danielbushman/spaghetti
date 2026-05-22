@@ -33,6 +33,7 @@ export function springAt(
   { stiffness = 170, damping = 26, mass = 1 }: SpringConfig = {},
 ): number {
   if (t <= 0) return 0;
+  if (mass <= 0 || stiffness <= 0) throw new Error("springAt: mass and stiffness must be > 0");
 
   const w0 = Math.sqrt(stiffness / mass);
   const zeta = damping / (2 * Math.sqrt(stiffness * mass));

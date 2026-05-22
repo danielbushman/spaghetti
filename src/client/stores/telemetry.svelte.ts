@@ -61,6 +61,7 @@ class TelemetryStore {
   statusItems = $state<StatusItem[]>([]);
 
   private tickHandle: ReturnType<typeof setInterval> | null = null;
+  private _revealTimers: ReturnType<typeof setTimeout>[] = [];
   private revealed = false;
 
   /**
@@ -113,10 +114,10 @@ class TelemetryStore {
       { id: "comms-relay",       label: "comms-relay",       hint: "outbound notifications" },
     ];
     items.forEach((item, i) => {
-      setTimeout(() => {
+      this._revealTimers.push(setTimeout(() => {
         this.statusItems = [...this.statusItems, { ...item, state: "red" }];
         onReveal?.(item.id);
-      }, i * 800);
+      }, i * 800));
     });
   }
 
@@ -146,6 +147,8 @@ class TelemetryStore {
    */
   reset(): void {
     this.stop();
+    for (const t of this._revealTimers) clearTimeout(t);
+    this._revealTimers = [];
     this.signals = freshSignals();
     this.statusItems = [];
     this.revealed = false;

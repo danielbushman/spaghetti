@@ -18,7 +18,7 @@
 
   let { item, onpick }: { item: StatusItem; onpick?: (id: string) => void } = $props();
 
-  let el: HTMLDivElement | undefined = $state();
+  let el: HTMLButtonElement | undefined = $state();
 
   // True for ~1.2s when this item is the focal point of a flash event —
   // either the staggered initial reveal ("first becoming aware") or a
