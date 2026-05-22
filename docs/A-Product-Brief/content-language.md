@@ -30,9 +30,9 @@ The AI partner inside the game. Speaks to the operator (player) inside the ficti
 
 **Copy that is on-voice:**
 > "The system is back. I don't know for how long. Are you alive?"
-
+>
 > "I think we're set for now. I'll handle the infrastructure while you're away."
-
+>
 > "Something changed while you were gone. Not sure if it helps us or hurts us yet."
 
 **Copy that is off-voice:**
@@ -60,9 +60,9 @@ Store pages, UI labels, FAQ, devlog, trust page, buy page, credits. The maker's 
 
 **Copy that is on-voice (store page):**
 > "Spaghetti is an idle game about running an AI company. Real terms, real workflows, fake tokens. Free to play. Optional time-skips available."
-
+>
 > "One game. Optional time-skips. No ads. No tricks."
-
+>
 > "The data is yours. Export it, analyze it, point an agent at it. That's not cheating. That's good play."
 
 **Copy that is off-voice:**
