@@ -277,6 +277,12 @@ describe("sparks", () => {
     expect(() => burstSparks(0, 0)).not.toThrow();
     expect(() => spawnSpark(10, 20, { dirX: -1 })).not.toThrow();
   });
+
+  test("contractBurst is a no-op in non-DOM env (no throw)", async () => {
+    const { contractBurst } = await import("../src/client/motion/sparks");
+    expect(() => contractBurst(0, 0)).not.toThrow();
+    expect(() => contractBurst(100, 200, { count: 12, intensity: 1.4 })).not.toThrow();
+  });
 });
 
 describe("flares", () => {
@@ -286,6 +292,49 @@ describe("flares", () => {
     expect(() => bloomFlare(10, 20, { intensity: 2 } as any)).not.toThrow();
     expect(() => flareBurst(0, 0, 5)).not.toThrow();
     expect(() => flareBurst(0, 0, 5, { intensity: 1.8 })).not.toThrow();
+  });
+});
+
+describe("thoughtArc", () => {
+  test("flyThought and flyThoughtBetween are no-ops in non-DOM env (no throw)", async () => {
+    const { flyThought, flyThoughtBetween } = await import("../src/client/motion/thoughtArc");
+    // No document → returns a noop cancel and never touches the DOM.
+    const cancel = flyThought([0, 0], [100, 200]);
+    expect(typeof cancel).toBe("function");
+    expect(() => cancel()).not.toThrow();
+    expect(() => flyThoughtBetween(null, null)).not.toThrow();
+    expect(() => flyThought([0, 0], [50, 50], { peak: 30, duration: 400 })).not.toThrow();
+  });
+});
+
+describe("springReveal", () => {
+  test("returns an action interface in non-DOM env", async () => {
+    // springReveal doesn't gate on `typeof document` because the Svelte
+    // action receives a node from a real component. In bun:test (no
+    // DOM) we can still construct a fake node with a `.style` object
+    // and exercise the action's plumbing — apply() and animateTo() —
+    // even if requestAnimationFrame never fires.
+    const { springReveal } = await import("../src/client/motion/spring");
+    // Minimal node-shaped duck.
+    const node = { style: {} as Record<string, string> } as unknown as HTMLElement;
+    const action = springReveal(node, { visible: false, from: "right", distance: 20 });
+    expect(typeof action.update).toBe("function");
+    expect(typeof action.destroy).toBe("function");
+    // At p=0 the transform should be the offset, opacity 0.
+    expect((node as any).style.transform).toBe("translateX(20px)");
+    expect((node as any).style.opacity).toBe("0");
+    expect(() => action.update({ visible: true })).not.toThrow();
+    expect(() => action.destroy()).not.toThrow();
+  });
+
+  test("clears inline transform/opacity at rest so no stacking context lingers", async () => {
+    const { springReveal } = await import("../src/client/motion/spring");
+    const node = { style: {} as Record<string, string> } as unknown as HTMLElement;
+    // Starting visible: initial paint at p=1 should leave both empty.
+    const action = springReveal(node, { visible: true, from: "right" });
+    expect((node as any).style.transform).toBe("");
+    expect((node as any).style.opacity).toBe("");
+    action.destroy();
   });
 });
 
