@@ -157,6 +157,53 @@ export function burstSparks(x: number, y: number, dirX = 1): void {
   }
 }
 
+/** Tuning knobs for a contract-close burst. */
+export type ContractBurstOptions = {
+  /** Number of sparks. Default 28. */
+  count?: number;
+  /** Intensity multiplier on sizes and speeds. Default 1. */
+  intensity?: number;
+};
+
+/**
+ * Celebratory burst for a "contract closing" moment — the visual punctuation
+ * for a deal landing. Omnidirectional spray of larger, floatier sparks with
+ * stronger glow than the cursor variant. Reads as confetti at a phosphor-
+ * terminal scale: a sustained shower from the center outward, gravity
+ * lighter than cursor sparks so the spray hangs in the air briefly.
+ *
+ * Wired today to status-item completion (red → green) — the closest current
+ * analog to a contract close. When real contract gameplay lands, the same
+ * primitive will fire on the contract's "closed" event.
+ *
+ * Also fires a single subtle tick sound panned to the burst's screen X.
+ */
+export function contractBurst(
+  x: number,
+  y: number,
+  options: ContractBurstOptions = {},
+): void {
+  const count = options.count ?? 28;
+  const k = options.intensity ?? 1;
+  for (let i = 0; i < count; i++) {
+    spawnSpark(x, y, {
+      angleSpread:  Math.PI * 2,     // full 360°
+      baseAngle:    0,
+      speedMin:     90  * k,
+      speedMax:     260 * k,
+      lifetimeMin:  650,
+      lifetimeMax:  1400,
+      gravity:      140,             // floatier than cursor (320) — hangs
+      sizeMin:      2,
+      sizeMax:      5,
+      accentChance: 0.35,            // more yellow/cyan than cursor (0.15)
+    });
+  }
+  if (typeof window !== "undefined") {
+    playSpark({ spatial: { type: "stereo", pan: panFromScreenX(x) } });
+  }
+}
+
 // Boot-flash flares live in motion/flares.ts. Different particle type
 // (radial-gradient blooms, no gravity), different visual language. They
 // are not sparks.

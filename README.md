@@ -19,7 +19,8 @@ its own rendering layer.
 │  ├─ agent.ts            system prompts (mirror of python/agent.py)
 │  ├─ components/         BlinkingLight, Banner, Header, ChatLog, ChatMessage, Input, ModelSelect
 │  ├─ stores/             chat / ollama / boot — Svelte 5 rune stores
-│  └─ motion/             d3-ease wrappers, spring solver, arc paths, typewriter
+│  └─ motion/             d3-ease wrappers, spring solver, arc paths, typewriter,
+│                         sparks, flares, thought arcs
 └─ src/svelte-plugin.ts   tiny Bun plugin: .svelte and .svelte.ts → ESM
 ```
 
@@ -123,6 +124,12 @@ you have it on hand at every call site.
 - **`typing.ts`** — per-character delay function for typewriter rhythm.
   Punctuation pauses, letters fly, occasional micro-hitch. Pinned to feel
   like the agent thinking, not a printer.
+- **`sparks.ts`** / **`flares.ts`** — body-appended particle emitters
+  driven by WAAPI. Sparks are small ballistic specks (cursor + contract-
+  close bursts); flares are larger radial blooms (boot flashes).
+- **`thoughtArc.ts`** — `flyThought(from, to)` / `flyThoughtBetween(elA, elB)`.
+  Draws a curved SVG path with a luminous head + fading trail between two
+  viewport points. Used for agent-to-agent "thoughts in flight".
 
 The public references behind these (none of which we depend on as a library,
 just intellectually):
@@ -146,10 +153,20 @@ just intellectually):
   buffer that the receive task fills while the display task drains.
 - A cursor `▌` **blinks** while a message is still typing, vanishes when done.
 - The input border **glows** softly on focus.
-
-Future motion candidates: SVG arcs for "thoughts in flight" between agents,
-spring-based panel reveals when management UI lands, particle bursts on
-contract closings.
+- **Thoughts in flight** — when the agent surfaces a new diagnostic, or
+  commits to a fix, a luminous arc flies from the heart-dot in the header
+  to the affected status row. SVG path with a glowing head + fading trail,
+  curved via `quadBezier` and timed on `swoosh` easing. See
+  `motion/thoughtArc.ts`. (When fleet-of-agents gameplay lands, the same
+  primitive will fire arc-to-arc between sub-agents.)
+- **Spring panel reveals** — the side column slides in from the right on
+  an analytic spring (`SPRINGS.noWobble`) via the `springReveal` Svelte
+  action. Same primitive will drive the management UI panel when it lands;
+  pass `from: "left"` or `from: "bottom"` per the layout.
+- **Particle bursts on contract closings** — when a status item flips
+  green, an omnidirectional spark spray bursts from the row. The same
+  `contractBurst` primitive will fire on the contract-closed event when
+  real contract gameplay arrives.
 
 ## Tests
 

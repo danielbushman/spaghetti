@@ -10,6 +10,7 @@
 -->
 <script lang="ts">
   import type { Message } from "../stores/chat.svelte";
+  import { chat } from "../stores/chat.svelte";
   import { onMount } from "svelte";
   import { overshoot, smooth } from "../motion/easings";
   import { burstSparks } from "../motion/sparks";
@@ -47,6 +48,25 @@
     message.typing && message.role === "agent" && message.visible.length === 0,
   );
 
+  // Boot-log fade. Once the agent's opener ("Are you alive?") begins typing
+  // in, the prior system lines (cold-boot / memory / agent-core / ghetti
+  // handshake) recede — they're context from before the conversation, not
+  // part of it. Detection: this is a system message AND a chronologically-
+  // earlier agent message exists in the log with at least one visible char.
+  // Post-agent system lines (chat failures, silent-line fallbacks) don't
+  // fade because they sit later in the list than the opener and are still
+  // active signal.
+  const isPreOpenerBootLine = $derived.by(() => {
+    if (message.role !== "system") return false;
+    const ms = chat.messages;
+    for (let i = 0; i < ms.length; i++) {
+      const m = ms[i];
+      if (m.id === message.id) return false; // hit self before any agent — not faded
+      if (m.role === "agent" && m.visible.length > 0) return true; // opener has started
+    }
+    return false;
+  });
+
   // Entry motion (one-shot). The component never replays this on prop change.
   onMount(() => {
     if (!el) return;
@@ -64,7 +84,16 @@
       const e = ease(p);
       el!.style.transform = `translateX(${startX * (1 - e)}px)`;
       el!.style.opacity = String(Math.min(1, p * 1.6));
-      if (p < 1) raf = requestAnimationFrame(frame);
+      if (p < 1) {
+        raf = requestAnimationFrame(frame);
+      } else {
+        // Clear the inline transform/opacity now that the entry
+        // animation is done. Lets CSS classes (notably .faded, for
+        // post-opener boot-line dim) take over without fighting an
+        // inline `opacity: 1`.
+        el!.style.transform = "";
+        el!.style.opacity = "";
+      }
     }
     raf = requestAnimationFrame(frame);
 
@@ -203,7 +232,7 @@
   In both render modes, regular characters use the simpler single
   span. The '?' branches do the wrapping.
 -->
-<div class="msg msg-{message.role}" bind:this={el} style="opacity: 0;"
+<div class="msg msg-{message.role}" class:faded={isPreOpenerBootLine} bind:this={el} style="opacity: 0;"
   >{#if prefix}<span class="prefix">{prefix}</span>{/if}<span class="text"
   >{#if message.typing}{#each [...message.visible] as ch, i (`${i}-${ch}`)}{#if ch === "?"}<span class="char question" style:--i={i}><span class="snap">{ch}</span></span>{:else}<span class="char">{ch}</span>{/if}{/each}{:else}{#each doneParts as part, i (i)}{#if part.type === "question"}<span class="question" use:questionMarkBoing style:--i={i}><span class="snap">?</span></span>{:else if part.type === "money"}<span class="money">{part.value}</span>{:else}{part.value}{/if}{/each}{/if}</span
   >{#if isWaitingForFirstToken}<ThinkingIndicator active={true} />{:else if message.typing}<span bind:this={cursorEl} class="cursor" class:on={cursorOn}>▌</span>{/if}</div>
@@ -216,6 +245,25 @@
   .msg-system {
     color: #557755;
     font-style: italic;
+    /*
+      Two-property transition: opacity for the post-opener fade, and
+      filter (saturation/blur) for the slight "receding into the
+      background" feel. Both share the same long ease so the boot log
+      drifts away rather than blinks down.
+    */
+    transition:
+      opacity 1.6s cubic-bezier(0.16, 1, 0.3, 1) 600ms,
+      filter  1.6s cubic-bezier(0.16, 1, 0.3, 1) 600ms;
+  }
+  /*
+    Pre-opener boot lines once the agent has started speaking: opacity
+    drops to 0.22 (already-muted olive plus this) and a small saturation
+    pull-back so the green leans more toward grey. Reads as "those lines
+    were yesterday."
+  */
+  .msg-system.faded {
+    opacity: 0.22;
+    filter: saturate(0.5);
   }
   /*
     User messages have no prefix. They're indented so their text starts

@@ -88,8 +88,25 @@
         z-index: 100;
         will-change: transform, opacity;
       }
+      /*
+        Thought arcs — body-appended <svg> elements that draw a curved
+        path between two screen points, with a luminous head traveling
+        the arc. Each thought lasts ~700ms then removes itself. Used
+        for "thoughts in flight" between agents (motion/thoughtArc.ts).
+        Sits at z 150 — above sparks/flares (100) but below the
+        .status-flash overlay (200) so the dim still mutes the arc
+        when a flash is active.
+      */
+      .thought-arc {
+        position: fixed;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        z-index: 150;
+        overflow: visible;
+      }
       @media (prefers-reduced-motion: reduce) {
-        .spark, .flare { display: none; }
+        .spark, .flare, .thought-arc { display: none; }
       }
     </style>
   </head>

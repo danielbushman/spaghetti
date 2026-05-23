@@ -79,6 +79,7 @@
   style="opacity: 0;"
   disabled={item.state !== "red"}
   onclick={activate}
+  data-status-id={item.id}
 >
   <div class="content" class:spotlight={isFlashing}>
     <span class="dot">●</span>

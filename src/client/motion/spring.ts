@@ -115,3 +115,138 @@ export function animateSpring(
     cancelAnimationFrame(raf);
   };
 }
+
+/** Options for the panel-reveal helper. */
+export type SpringRevealParams = {
+  /**
+   * Whether the panel is currently being shown. Flipping from false→true
+   * runs the spring forward; true→false runs it in reverse. Defaults to
+   * true so a static `use:springReveal` (no params) plays the reveal
+   * once on mount and stays put.
+   */
+  visible?: boolean;
+  /** Direction the panel comes from. */
+  from?: "left" | "right" | "top" | "bottom";
+  /** Distance in px to travel along the chosen axis. Default 20. */
+  distance?: number;
+  /** Whether to interpolate opacity 0→1 alongside the translate. Default true. */
+  fade?: boolean;
+  /** Spring config. Default `SPRINGS.noWobble`. Use `pop` for snappy, `wobbly` for playful. */
+  config?: SpringConfig;
+};
+
+/**
+ * Spring-based panel reveal. The same primitive that the future
+ * management UI panel will reuse — when that lands, drop the action on
+ * the panel root with whatever `from` direction the layout calls for.
+ *
+ * Used today on the side column (the closest current "panel" surface),
+ * replacing its CSS cubic-bezier slide-in. The spring takes as long as
+ * the physics says, so a `noWobble` preset feels calm while `pop` or
+ * `wobbly` adds personality.
+ *
+ * As a Svelte action:
+ *
+ *   <aside use:springReveal={{ visible: scene.sideColumnVisible, from: "right" }}>
+ *
+ * The action observes `params.visible` across `update` calls; flipping
+ * it runs the spring forward or backward.
+ *
+ * Honors `prefers-reduced-motion`: if set, the element snaps to the
+ * target state with no animation.
+ */
+export function springReveal(
+  node: HTMLElement,
+  params: SpringRevealParams = {},
+): { update(next: SpringRevealParams): void; destroy(): void } {
+  const state = {
+    visible:  params.visible  ?? true,
+    from:     params.from     ?? "right",
+    distance: params.distance ?? 20,
+    fade:     params.fade     ?? true,
+    config:   params.config   ?? SPRINGS.noWobble,
+  };
+
+  // Honor prefers-reduced-motion: snap to the target state, never animate.
+  // Also snap if rAF isn't available (SSR / bun:test) — `animateSpring`
+  // would otherwise throw at the first frame.
+  const reduce =
+    typeof requestAnimationFrame !== "function" ||
+    (typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  // Current displayed progress: 0 = fully offset and transparent,
+  // 1 = at rest position and fully opaque. We persist `current` across
+  // visibility flips so a mid-flight cancel resumes from where we are.
+  let current = state.visible ? 1 : 0;
+  let cancel: (() => void) | null = null;
+
+  function apply(p: number): void {
+    const axis = state.from === "left" || state.from === "right" ? "X" : "Y";
+    const sign = state.from === "left" || state.from === "top" ? -1 : 1;
+    const offset = (1 - p) * state.distance * sign;
+    // At full rest (progress exactly 1, no overshoot) clear the inline
+    // properties so the element doesn't carry a stacking context
+    // forever. Critical for panels that host children with their own
+    // z-index escapes (e.g. a `.flashing` status row that needs to lift
+    // above a fixed-position overlay).
+    if (p === 1) {
+      node.style.transform = "";
+      if (state.fade) node.style.opacity = "";
+      return;
+    }
+    node.style.transform = `translate${axis}(${offset}px)`;
+    if (state.fade) node.style.opacity = String(Math.max(0, Math.min(1, p)));
+  }
+
+  function animateTo(target: 0 | 1): void {
+    if (cancel) {
+      cancel();
+      cancel = null;
+    }
+    if (reduce) {
+      current = target;
+      apply(target);
+      return;
+    }
+    const start = current;
+    const span = target - start;
+    if (span === 0) return;
+    cancel = animateSpring((sp) => {
+      // sp goes 0→1; map to start→target. Allow the spring's transient
+      // overshoot to pass through so wobbly presets actually wobble.
+      current = start + span * sp;
+      apply(current);
+    }, state.config);
+  }
+
+  // Initial paint — no animation; reveal animates only when visible
+  // flips true after mount (or if it started true, we just paint at 1).
+  apply(current);
+
+  // If starting hidden, freeze at offset until visible flips true.
+  // If starting visible, paint at rest and ride future toggles.
+
+  return {
+    update(next: SpringRevealParams) {
+      const wasVisible = state.visible;
+      // Merge — don't overwrite unspecified keys with undefined.
+      if (next.visible  !== undefined) state.visible  = next.visible;
+      if (next.from     !== undefined) state.from     = next.from;
+      if (next.distance !== undefined) state.distance = next.distance;
+      if (next.fade     !== undefined) state.fade     = next.fade;
+      if (next.config   !== undefined) state.config   = next.config;
+
+      if (state.visible !== wasVisible) {
+        animateTo(state.visible ? 1 : 0);
+      } else {
+        // Non-visibility param changed — repaint at current progress.
+        apply(current);
+      }
+    },
+    destroy() {
+      if (cancel) cancel();
+    },
+  };
+}

@@ -36,6 +36,8 @@
   import { loop } from "./stores/loop.svelte";
   import { abtest } from "./stores/abtest.svelte";
   import { audioEngine, syncAudioStoreToEngine } from "./audio";
+  import { flyThoughtBetween } from "./motion/thoughtArc";
+  import { contractBurst } from "./motion/sparks";
   import {
     AWAKENING_SYSTEM_PROMPT,
     CHECKIN_INSTRUCTION,
@@ -44,6 +46,26 @@
     AUTO_PICK_ADDENDUM,
   } from "./agent";
   import { logEvent, sessionId, resetSessionId } from "./log";
+
+  /**
+   * The agent's persistent visual anchor in the chrome — the heart-dot
+   * in the header. We use it as the origin for "thought" arcs that fly
+   * out to status items: when the agent surfaces a new diagnostic
+   * (revealStatus) or commits to a fix (runFixFlow), a luminous arc
+   * leaves the heart and lands on the targeted item. Reads as one
+   * agent passing an idea / intent to another.
+   *
+   * If the heart isn't in the DOM yet (pre-mount, or briefly during a
+   * soft restart) flyThoughtBetween no-ops.
+   */
+  function thoughtSourceEl(): Element | null {
+    if (typeof document === "undefined") return null;
+    return document.querySelector("header .light");
+  }
+  function statusEl(id: string): Element | null {
+    if (typeof document === "undefined") return null;
+    return document.querySelector(`[data-status-id="${id}"]`);
+  }
 
   const MODEL_KEY = "spaghetti.model";
 
@@ -326,6 +348,12 @@
     // The id makes the affected status item spotlight itself harder than
     // the surrounding dim.
     effects.flash(id);
+    // Thought arc from the agent's heart to the item being acted on —
+    // the agent reaches across the cockpit and *grabs* the item it's
+    // about to fix. Same primitive as the reveal-time arc; firing it
+    // here closes the visual loop: surfacing → acting both come from
+    // the same source.
+    flyThoughtBetween(thoughtSourceEl(), statusEl(id), { duration: 600 });
     clearSilence();
 
     busy = true;
@@ -340,6 +368,16 @@
     // Same punctuation on the working → green transition; same id so
     // the resolving item gets spotlit a second time as it lands.
     effects.flash(id);
+    // Particle burst on completion — visual punctuation for a "win".
+    // Today this fires on red→green; this is the same primitive that
+    // a future contract-closing event will use (motion/sparks.ts ::
+    // contractBurst). Centered on the item's rect so the spray reads
+    // as bursting *from* the resolved status row.
+    const cell = statusEl(id);
+    if (cell) {
+      const r = cell.getBoundingClientRect();
+      contractBurst(r.left + r.width / 2, r.top + r.height / 2);
+    }
     scene.phase = "open";
     logEvent({ type: "scene_phase", phase: "open", resolved: id });
     scheduleSilenceProbe(0);
@@ -456,7 +494,19 @@
         // Each item's reveal is the operator's "first becoming aware"
         // moment for that task — fire a dramatic flash so the item
         // pops toward the camera while the rest of the scene dims.
-        telemetry.revealStatus((id) => effects.flash(id));
+        // Plus a thought arc from the agent's heart in the header to
+        // the status item: the agent visibly *hands* the diagnostic
+        // across to the operator's panel. A short delay so the arc
+        // arrives just as the item finishes its overshoot slide-in
+        // and the flash punctuation is at its brightest.
+        telemetry.revealStatus((id) => {
+          effects.flash(id);
+          setTimeout(() => {
+            flyThoughtBetween(thoughtSourceEl(), statusEl(id), {
+              duration: 720,
+            });
+          }, 120);
+        });
         scene.phase = "triage";
         logEvent({ type: "scene_phase", phase: "triage" });
         // Start the auto-pick countdown the moment status items are

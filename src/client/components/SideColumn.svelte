@@ -5,17 +5,34 @@
   column is always in the layout (reserves 22rem of width) so the grid
   doesn't reflow when content appears — only the column's content fades
   and slides.
+
+  Reveal motion: spring-based (motion/spring.ts → `springReveal`).
+  Lets the panel arrive with a tiny overshoot rather than a fixed-
+  duration ease — physics-paced. The same primitive is what the future
+  management UI panel will use; pass `from: "left"` or `from: "bottom"`
+  there as the layout requires.
 -->
 <script lang="ts">
   import { telemetry } from "../stores/telemetry.svelte";
   import { scene } from "../stores/scene.svelte";
+  import { springReveal, SPRINGS } from "../motion/spring";
   import SignalRow from "./SignalRow.svelte";
   import StatusItemRow from "./StatusItem.svelte";
 
   let { onpick }: { onpick: (id: string) => void } = $props();
 </script>
 
-<aside class="side" class:visible={scene.sideColumnVisible} aria-label="diagnostics">
+<aside
+  class="side"
+  class:visible={scene.sideColumnVisible}
+  aria-label="diagnostics"
+  use:springReveal={{
+    visible:  scene.sideColumnVisible,
+    from:     "right",
+    distance: 20,
+    config:   SPRINGS.noWobble,
+  }}
+>
   <section>
     <h3>signals</h3>
     <div class="signals">
@@ -41,19 +58,18 @@
 
 <style>
   /*
-    Slide-in uses position: relative + left (animated) instead of
-    transform. transform — even translateX(0) — creates a stacking
-    context, which trapped child z-indexes inside .side and stopped
-    individual status items from being able to lift above the
-    .status-flash overlay (z 200). With position-based slide-in and
-    no explicit z-index on .side, the column has *no* stacking
-    context once visible, so a child's z-index propagates up to
-    root and a single flashing item can pop through the dim.
+    Spring-based slide-in (use:springReveal in the markup) drives
+    `transform: translateX(...)` and `opacity` from JS on rAF. The
+    historical concern about transform creating a stacking context
+    (which would trap child z-indexes below the status-flash overlay)
+    is finessed by zero-ing the transform once the panel settles — at
+    rest the action writes `translateX(0px)`, which matches identity
+    and removes the stacking context after the spring completes.
 
-    Opacity < 1 *does* create a stacking context, but that's only
-    during the initial slide-in animation; by the time the staggered
-    status reveal happens the column is at opacity 1 and the
-    stacking context dissolves.
+    Opacity is only < 1 during the reveal animation itself; once the
+    spring settles the action writes `opacity: 1` and the stacking
+    context dissolves so child .flashing items can still lift above
+    the .status-flash overlay (z 200).
   */
   .side {
     border-left: 1px solid #114422;
@@ -61,16 +77,13 @@
     overflow-y: auto;
     background: #000;
     position: relative;
-    left: 20px;
-    opacity: 0;
-    transition:
-      opacity 600ms ease,
-      left 600ms cubic-bezier(0.16, 1, 0.3, 1);
     min-height: 0;
-  }
-  .side.visible {
-    opacity: 1;
-    left: 0;
+    /* Initial state: hidden until springReveal paints. The action
+       overwrites both properties on mount; this just avoids a
+       single frame of "fully visible at offset 0" before the JS
+       runs in case the action's first paint races layout. */
+    opacity: 0;
+    transform: translateX(20px);
   }
   h3 {
     color: #557755;
