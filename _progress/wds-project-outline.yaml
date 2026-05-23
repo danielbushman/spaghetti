@@ -5,7 +5,7 @@ rendering-tool: excalidraw
 
 phases:
   product-brief: complete
-  trigger-map: not-started
+  trigger-map: in-progress
   ux-scenarios: not-started
   ux-design: not-started
   development: not-started
