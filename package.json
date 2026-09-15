@@ -8,7 +8,9 @@
     "dev": "bun run src/server/dev.ts",
     "build": "NODE_ENV=production bun run src/build.ts",
     "start": "NODE_ENV=production bun run src/server/index.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "sim:report": "bun run src/sim/report.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "svelte": "^5.0.0",

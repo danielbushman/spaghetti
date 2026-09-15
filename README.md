@@ -10,25 +10,33 @@ profit, or go bankrupt and start again with what you learned. Real terms,
 real screens, fake tokens. Everything runs locally against Ollama; there are
 no API costs.
 
-**Status (2026-09-15):** the design pivoted to the enterprise console. The
-code on this branch is the pre-pivot prototype: a chat cockpit with an intro
-sequence, a signal row, a speed slider, a motion library and an audio engine.
-The intro, motion, signals and server carry forward; the chat cockpit and the
-Python TUI are being retired. Design lives in `docs/` — start with
-`docs/D-Design-Exploration/01-v-shape-prestige.md`, then
+**Status (2026-09-15):** the design pivoted to the enterprise console, and
+the console's first slice is being built on this branch. The console is served
+at `/`; the pre-pivot chat cockpit stays at `/cockpit/` until the console
+replaces it. The intro, motion, signals and server carry forward; the chat
+cockpit and the Python TUI are being retired. Design lives in `docs/` — start
+with `docs/D-Design-Exploration/01-v-shape-prestige.md`, then the build plan
+`docs/D-Design-Exploration/02-first-slice-plan.md` and
 `docs/A-Product-Brief/product-brief.md` (v1.1).
 
 ```text
-┌─ src/spaghetti/         python — textual TUI       (retired; kept until the console lands)
-├─ src/server/            bun    — web server + ollama proxy
-├─ src/client/            svelte — web ui (pre-pivot cockpit)
-│  ├─ App.svelte          awakening scene orchestrator
-│  ├─ agent.ts            system prompts (pre-pivot partner voice)
-│  ├─ components/         BlinkingLight, Banner, Header, ChatLog, ChatMessage, Input, ModelSelect
-│  ├─ stores/             chat / ollama / boot / telemetry / speed — Svelte 5 rune stores
-│  └─ motion/             d3-ease wrappers, spring solver, arc paths, typewriter,
-│                         sparks, flares, thought arcs
-└─ src/svelte-plugin.ts   tiny Bun plugin: .svelte and .svelte.ts → ESM
+┌─ src/sim/               pure ts — the economy. step(state, dtHours, config, rng) → state.
+│                         aggregate ledger, three planted bleeds, event log + replay, selectors.
+│                         no DOM, no IO, no Date.now(), no Math.random(); the console injects time.
+├─ src/console/           svelte 5 — the game surface, served at "/"
+│  ├─ index.html          system fonts only; links /console.css, loads /console.js
+│  ├─ App.svelte          shell: rail | top bar / room; ⌘K; global keys; boot
+│  ├─ core/run.ts         RunController — all game logic, plain ts, unit-tested
+│  ├─ stores/             game / router / palette — Svelte 5 rune wrappers
+│  ├─ components/         Rail StatusPill Stat Panel DataTable TimeSeries BarList TierBadge Note TopBar Palette
+│  ├─ rooms/              Overview Fleets FleetDetail Routing Spend
+│  └─ theme.css           tokens + primitives (warm dark greys, purple accent)
+├─ src/client/            svelte — the pre-pivot cockpit, served at "/cockpit/" (untouched)
+├─ src/server/            bun    — static files + ollama proxy (/api/*)
+├─ src/build.ts           two entries: cockpit (main.js) and console (console.js + console.css)
+├─ src/svelte-plugin.ts   tiny Bun plugin: .svelte and .svelte.ts → ESM
+├─ src/spaghetti/         python — textual TUI (retired; kept until the console lands)
+└─ tests/                 bun test — sim/, console/, build.test.ts, motion.test.ts
 ```
 
 ## Requirements
@@ -45,15 +53,30 @@ Python TUI also still works if you want it: `pip install -e ".[dev]"` then
 
 ```sh
 bun install
-bun run dev            # builds, starts server on http://localhost:5173, watches
+bun run dev            # builds both entries, serves http://localhost:5173, watches src/client, src/console, src/sim
 ```
+
+- `http://localhost:5173/` — the console (Overview first).
+- `http://localhost:5173/cockpit/` — the pre-pivot cockpit.
 
 Or for production-style serving:
 
 ```sh
-bun run build
+bun run build          # dist/client: console.js + console.css + index.html, main.js + cockpit/index.html
 bun run start          # serves dist/client + /api/*
 ```
+
+Other scripts:
+
+```sh
+bun test               # everything under tests/
+bun run sim:report     # the opening P&L, the three bleeds and what each fix buys, per seed
+bun run typecheck      # tsc --noEmit over src/ and tests/
+```
+
+Until the console entry (`src/console/main.ts`) exists, `bun run build` logs
+`[build] console entry missing, skipping` and the server falls back to the
+cockpit html at `/`. That is the wave-1 state, not a bug.
 
 Environment vars (all optional):
 
@@ -94,6 +117,101 @@ necessary we can layer it on without restructuring. Reasons:
 
 If we later need stronger frontend tooling, the project is laid out so Vite
 can take over `src/client/` while Bun continues to own `src/server/`.
+
+## Console — first slice
+
+The console is the game. You log in to your co-founder's screens over a real,
+deterministic economy — an aggregate ledger of rates, ticked one sim-hour at a
+time — and you have to find where the money goes. Every number a room shows is
+a selector over that ledger. Nothing explains itself; nothing recommends. Where
+a room shows a counterfactual ("last 7d at small: $4.5k/day") it is a re-pricing
+of recorded tokens at a listed price, never advice.
+
+At first login the company has about six months of runway, is burning about
+$5.6M a sim-week, and one incident is already open. Three bleeds are planted in
+the ledger; none of them is labelled. The loop is the SRE loop: notice →
+investigate → act → wait → verify.
+
+### Rooms
+
+One decision per screen. Hash routes, no server involvement.
+
+| room               | route                 | shows                                                              | lever                                              |
+| ------------------ | --------------------- | ------------------------------------------------------------------ | -------------------------------------------------- |
+| Overview           | `#/overview`          | runway, slope, the cash curve with its projection, signals, incidents | none — doors out only                           |
+| Fleets             | `#/fleets`            | every fleet: status, tier mix, cost/day, tokens/day, error %, attempts/job, utilization, queue, slots | pause / resume; scale-to-zero |
+| Fleet detail       | `#/fleets/:id`        | the co-founder's notes, workloads, tokens by tier, error budget      | routing policy + concurrency; retry policy (for now) |
+| Models & Routing   | `#/routing?tier=`     | rules table, the effective-routing grid (size class × tier), prices | add / edit / remove routing rules — the big one    |
+| Spend Explorer     | `#/spend?group=&range=&top=&fleet=` | where the money goes, grouped by fleet / model / workload / customer | none — every row is a door |
+
+Spend rows link to the lever: fleet and workload rows open the fleet, model
+rows open Routing with that tier outlined. Customer rows have no door yet
+(there is no Customers room in this slice).
+
+### ⌘K and keys
+
+`⌘K` / `Ctrl+K` opens the palette: rooms and fleets, fuzzy-matched
+(`halb` + Enter lands on `halberd-monitor`). `Esc` closes it. With the palette
+closed, `g o` / `g f` / `g r` / `g s` jump to Overview / Fleets / Routing /
+Spend, and `Space` toggles pause. None of that fires while you are typing in a
+field — "go small" in a rule note goes nowhere.
+
+### Time
+
+One tick is one sim-hour; the wall clock runs at **one sim-week per real day**
+at 1×. The top bar holds `▶ / ⏸`, a speed select labelled by what it means, and
+two manual advances:
+
+| speed | meaning       |
+| ----- | ------------- |
+| 1×    | 1 wk / day    |
+| 24×   | 1 wk / hour   |
+| 168×  | 1 wk / 8.6 min |
+| 1008× | 1 wk / 86 s   |
+
+`+1 day` and `+1 week` step the sim immediately. Paused time never accrues.
+When you come back, the run catches up (capped at one sim-year) and the top bar
+says once how long you were away and what it cost.
+
+After you act and the run has moved at least a day, the top bar answers with
+what the action bought: `▲ +3.1 wk bought`, `no change`, `▼ −0.5 wk`,
+`▲ climbing`, or `runway now finite · 26 wk`. The baseline is the runway at the
+moment you acted, so the number attributes to you only what changed since.
+Advances with no action pending never show a badge.
+
+### Persistence and reset
+
+Only the event log is stored, under the `localStorage` key
+`spaghetti.console.run.v1` (`{ version, seed, log, time }`). State is
+regenerated by replaying the log over the seeded world, so a save is a few KB
+and a hard refresh preserves the run, with catch-up applied. To reset:
+
+```js
+localStorage.removeItem('spaghetti.console.run.v1')   // in the browser devtools, then reload
+```
+
+The seed is recorded in the save; the same seed and log reproduce the same
+state bit-for-bit within one JS engine. Checkpoint hashes are verified on load;
+a mismatch is logged and replay is trusted.
+
+### Tuning
+
+Every numeric knob lives in `src/sim/constants.ts`. Tests pin outcomes
+(bankruptcy window, flatten ratio, inflection), not constants, so a retune is a
+one-file edit. `bun run sim:report` prints the opening P&L and what each fix
+buys, per seed.
+
+### Not in this slice
+
+Each of these has a typed hook and no behaviour (plan §8):
+
+- **Intro sequence** — `App.svelte` `TODO(intro)`, gated on `game.run.isFirstLogin`.
+- **Prestige / post-mortem** — `PostMortemHook` in `src/sim/events.ts`; `TODO(prestige)` in `core/run.ts` and the top bar's "new run".
+- **Incidents room** — the `Incident` type and `openIncidents` selector exist; the retry policy panel sits on Fleet detail (`TODO(incidents)`) until then.
+- **Audit log** — every event already carries `t` and `wallMs`; `TODO(audit-log)` in Routing.
+- **Customers, Budgets, Runbooks rooms** — the selectors they need (`explore` by customer, per-fleet totals, `FleetDef.notes`) exist; the rooms do not.
+- **Copilot** — none. The game runs with Ollama off.
+- **SQLite** — `SaveRecord` is the row shape; `persistence.ts` is the only writer.
 
 ## API surface
 
@@ -178,11 +296,16 @@ just intellectually):
 ## Tests
 
 ```sh
-bun test
+bun test                        # everything
+bun test tests/build.test.ts    # the two-entry build: console.js + console.css + cockpit/
+bun test tests/sim              # the economy: determinism, replay, economy, invariants, explore, metrics
+bun test tests/console          # router, format, persistence, RunController, palette, the walkthrough
 ```
 
-Pure-math sanity tests for the motion library. The server and Svelte
-components are intentionally thin; if they grow they'll get tests too.
+Tests import only plain `.ts` modules — every algorithm lives in one. Rune
+modules and components are covered by the build smoke test; `bun test` has no
+Svelte plugin. The motion test has a known timing flake on slow containers;
+rerun it before believing it.
 
 ## Python TUI
 
