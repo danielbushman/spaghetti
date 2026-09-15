@@ -601,7 +601,7 @@ Components (Svelte 5, `$props()`, snippets, no UI libs):
 - The add-rule form with `{ sizeClass: heavy } → small` selected shows a non-zero `below eval floor` count before anything is dispatched; with `{ sizeClass: trivial } → small` it shows `0`.
 - Adding `{ sizeClass: trivial } → small` dispatches one `routing.set`; after `+1 week` the trivial × frontier cell is ≈ 0 and Overview's slope magnitude has at least halved.
 - `#/routing?tier=frontier` outlines that column.
-- Spend at first login with the default `top` (10) and group-by fleet shows `summarizer-east` first (share ≥ 30%) and all six idle rivers as rows with non-zero cost and a `0/day` tokens hint; group-by model shows frontier ≥ 55%; group-by customer shows `Halberd Capital` as the largest named account; totals equal `explore().total` and agree across group-bys.
+- Spend at first login with the default `top` (10) and group-by fleet shows `summarizer-east` first (share ≥ 30%) and all six idle rivers as rows with non-zero cost (≈ $53k/day each) and a tokens hint of ≈ 0 tokens/day — a trickle in the low K/day from the single `trickle-ingest` workload at `idleJobsPerHour` 2 (§3.6, §3.8), against fleets at billions, never rounded to a literal `0` (real terms never lie); group-by model shows frontier ≥ 55%; group-by customer shows `Halberd Capital` as the largest named account; totals equal `explore().total` and agree across group-bys.
 - `#/spend?group=model&fleet=summarizer-east` shows the chip and a single `frontier` series whose total equals that fleet's cost in the fleet group-by; clearing the chip restores the unfiltered view.
 - Fleet/workload rows navigate to `#/fleets/:id`; model rows to `#/routing?tier=<tier>`; `other` and customer rows have no link; controls update the hash.
 
