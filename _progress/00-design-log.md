@@ -7,7 +7,7 @@
 | Phase | Agent | Status |
 |---|---|---|
 | 1. Product Brief | Saga | ✓ complete |
-| 2. Trigger Map | Saga | ⏳ in-progress (Workshops 1–3 done + W1 amended; W4–5 pending) |
+| 2. Trigger Map | Saga | ⏳ in-progress (Workshops 1–3 done + W1 amended; W4–5 pending) — **pivot-amended 2026-09-15** |
 | 3. UX Scenarios | Freya | ○ not started |
 | 4. UX Design | Freya | ○ not started |
 | 5. Development | Mimir | ○ not started |
@@ -16,12 +16,44 @@
 
 ## Current
 
-**Phase 2 — Trigger Map** · Workshops 1–3 complete (Business Goals + Sam the Side-Project Seeker + Jordan the Journeyman) + **W1 amended in-place** with Two-Mode Time Accounting (W3 finding). Next: Workshop 4 (Persona — Kai, 13yo curious kid). Then Workshop 5 (Feature Impact, autonomous) and the poster.
+**2026-09-15 — Console pivot.** Game reframed as an enterprise admin console for a Quickbase-scale AI company with a V-shaped run (start rich and burning; learn or go bankrupt; bankruptcy is prestige). Brief, visual direction, content-language, business goals and personas amended in place (v1.1). Canonical design doc: `docs/D-Design-Exploration/01-v-shape-prestige.md`. Next: settle the open decisions in that doc's §9, then build the first slice (Overview + Spend Explorer + one hidden bleed) to test whether finding the bleed is fun.
+
+**Previous:** **Phase 2 — Trigger Map** · Workshops 1–3 complete (Business Goals + Sam the Side-Project Seeker + Jordan the Journeyman) + **W1 amended in-place** with Two-Mode Time Accounting (W3 finding). Next: Workshop 4 (Persona — Kai, 13yo curious kid). Then Workshop 5 (Feature Impact, autonomous) and the poster.
 Persona order locked for Workshops 2–4: **Sam → Jordan → Kai**.
 
 ---
 
 ## Log
+
+### 2026-09-15 — Console pivot · V-shape progression · prestige
+
+**Session:** maker + Claude, branch `design/v-shape-prestige` (worktree `v-shape-design`).
+**Approach:** riff conversation, then a thorough amendment pass over the existing docs rather than a rewrite from zero.
+
+**What changed:**
+- **Scale.** From a handful of agents to a Quickbase-scale enterprise: ~40 fleets, tens of thousands of concurrent agents shown only as populations, trillions of tokens per sim-month, ~5,000 business customers, ~$1B last valuation, ~6 sim-months of runway.
+- **Surface.** From a chat cockpit drawn as a fake TUI to a browser admin console. Grafana more than AWS; some of Linear's simplicity; slight fantasy edge (in naming and lore); slight casual-game finish (spacing, rounding, motion). The console IS the game; mastery is knowing the map.
+- **IA principle.** One decision per screen: more rooms than a real console, fewer choices in each. Screens are rooms, drill-downs are doors. Room test: a screen must offer a discovery or a lever.
+- **Fidelity rule.** Realism of vocabulary, not of simulation. A real term never lies; the math behind it is as simple as fun allows.
+- **Fiction.** The player co-founded the company; the partner who built and ran the system is gone (unexplained); the player inherits their console. Progressive disclosure becomes diegetic: reading a gone person's system. The warm partner voice is retired; two in-character voices replace it (the absent co-founder through runbooks/labels, and an optional deliberately limited copilot).
+- **Progression.** V-shape. Slope is the score. Inflection to profit wins the run; cash at zero folds the company. Bankruptcy is a ceremony (blameless post-mortem) and a restart carrying unlocked screens, saved dashboards, playbooks and the post-mortem. Working assumption: ~1 real month per first run; 1 real day = 1 sim-week.
+- **Priorities.** Fun first. The health rules stay as hard ship constraints ("fit and finish"), not the design's generator. No number in the goals changed.
+- **Architecture.** Deterministic aggregate simulation (rates and queues, not entities), event-sourced, playable with Ollama off, LLM as flavor never authority.
+
+**Deliverables written / amended:**
+- `docs/D-Design-Exploration/01-v-shape-prestige.md` — canonical pivot doc (new)
+- `docs/A-Product-Brief/product-brief.md` → v1.1
+- `docs/A-Product-Brief/visual-direction.md` → v1.1
+- `docs/A-Product-Brief/content-language.md` → v1.1
+- `docs/B-Trigger-Map/01-business-goals.md` — pivot amendment section
+- `docs/B-Trigger-Map/02-persona-sam-the-side-project-seeker.md`, `03-persona-jordan-the-journeyman.md` — pivot amendment blocks
+- `README.md` — intro rewritten; code marked pre-pivot
+
+**Open (see design doc §9):** co-founder name and departure; whether the copilot survives; run 1 designed-to-be-lost or winnable; absence handling; mid-run crest; reputation carry; first slice.
+
+**Pattern note:** WDS phases 3–5 (UX Scenarios, UX Design, Development) restart against the pivot. Trigger Map Workshops 4–5 (Kai, Feature Impact) remain pending and should be run against the amended Brief.
+
+---
 
 ### 2026-05-23 — Trigger Map Workshop 3 (Persona — Jordan the Journeyman) complete · Architectural design clarification surfaced
 

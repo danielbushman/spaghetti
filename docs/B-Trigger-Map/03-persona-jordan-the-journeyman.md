@@ -5,6 +5,14 @@
 
 ---
 
+> **Pivot amendment (2026-09-15).** Jordan's apprenticeship is now reading a
+> gone person's system: the co-founder's console, their naming, their
+> half-finished runbooks. "The overnight tutor" becomes reverse-engineering
+> what the fleets did from the audit log and the sparklines. His study mode
+> is the runbooks and the exports; his play mode is the console itself. His
+> canary role for the health envelope is unchanged. See
+> `docs/D-Design-Exploration/01-v-shape-prestige.md`.
+
 ## Who Jordan Is
 
 Jordan is 22, a junior developer at his first or second post-college role — likely maintenance work, CRUD, or whatever a junior dev can land in 2026, definitely *not* the senior-agentic-engineering work he wants. The CS degree is in hand; the real-AI-ops work he hopes to graduate into is on the other side of an experience gap he can't yet bridge. He's earnest — not naive, not hustling, just genuinely **practicing toward becoming the engineer he can already imagine being**. He's patient about it. He's also tired of waiting.

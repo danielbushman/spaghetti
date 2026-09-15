@@ -2,13 +2,13 @@
 
 > Phase 2 — Trigger Mapping · Workshop 1
 > Source: `docs/A-Product-Brief/product-brief.md` · Workshop date: 2026-05-22
-> Status: Draft — pending review
+> Status: Draft — pending review · **amended 2026-09-15 for the console pivot (see amendment below)**
 
 ---
 
 ## Vision
 
-*spaghetti is the AI-tycoon idle game that makes the genre honest — designed to be walked away from, designed to be optimized with the player's own real AI tools. It makes the AI-tycoon fantasy feel like a real skill, transferably, without ever announcing itself as training.*
+*spaghetti is the AI-tycoon idle game that makes the genre honest — the console of a billion-dollar AI company, designed to be learned, designed to be walked away from, designed to be optimized with the player's own real AI tools. It makes the AI-tycoon fantasy feel like a real skill, transferably, without ever announcing itself as training.*
 
 ---
 
@@ -68,6 +68,25 @@ spaghetti's health envelope (Goal 1) applies to **play mode** only — not to **
 - Study-mode obsessive-use nudges are **forbidden** — they would break the design's promise to apprentice-pattern players (e.g., a *"you've been at this too long"* nudge appearing while reading documentation would be design failure at the conceptual root).
 
 **Surfaced by:** Workshop 3 (Persona — Jordan the Journeyman). The conflation would have penalized the apprenticeship arc spaghetti exists to enable.
+
+---
+
+## Pivot amendment (2026-09-15)
+
+The game pivoted to an **enterprise admin console** for a Quickbase-scale AI
+company with a **V-shaped** run (start rich and burning; learn the console or
+go bankrupt; bankruptcy is prestige). See
+`docs/D-Design-Exploration/01-v-shape-prestige.md` and Product Brief v1.1.
+
+What this changes for the goals above:
+
+| Goal | Change |
+|---|---|
+| **Ordering for design work** | Fun first. Goals 1–3 are **ship criteria** — hard constraints on what launches — not the generator of the design. The maker's stance: *"that can't be the basis of finding the fun; it's fit and finish."* No number above changes. |
+| **Goal 1 — Walk-Away Loop** | Walk-away pride now comes from *slope* (the cash curve bent today) and from a system configured to run unattended. "Configuring for absence" is itself a lever the player learns. Absence is never punished *extra*. |
+| **Goal 2 — Honest Economy** | The published curves (Obj 2.1) are to be **re-derived** for the V-shape economy: aggregate simulation of fleets, workloads, model tiers and customers. The session shapes (sharp move / tune / deep investigation) hold. Obj 2.3's forbidden list is unchanged; bankruptcy is an instant restart and does not count as a lockout. |
+| **Goal 3 — Open Data Layer** | Now structural: the simulation is event-sourced, so export is the event log plus a snapshot. The bankruptcy post-mortem and the player's composed dashboards are the first exported artifacts and carry across prestige. |
+| **Two-Mode Accounting** | Unchanged. Reading the co-founder's runbooks, composing dashboards and analysing exports are study mode. Investigating and changing policy inside the running console is play mode. |
 
 ---
 

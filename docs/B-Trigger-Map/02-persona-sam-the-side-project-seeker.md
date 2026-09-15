@@ -5,6 +5,16 @@
 
 ---
 
+> **Pivot amendment (2026-09-15).** Sam's loop is now the console's loop:
+> notice → investigate → act → wait → verify. The 90-second check-in is
+> Overview + one anomaly + one policy change. The morning tune is budgets,
+> alerts and routing. The weekend mastermind window is Spend Explorer and
+> composing the dashboard that shows the next bleed. "Overnight bliss" becomes
+> *the sparkline moved the way he predicted.* His audit role sharpens: he is
+> the player most able to tell whether a real term is being used honestly
+> (Brief v1.1: *realism of vocabulary, not of simulation*). Everything below
+> is otherwise unchanged. See `docs/D-Design-Exploration/01-v-shape-prestige.md`.
+
 ## Who Sam Is
 
 Sam is 34, a senior agentic engineer at an enterprise. Real AI orchestration is his day job — and he's good at it. Respected, well-compensated, ambitious *not* bitter. The day job is genuinely fine. He has a partner, a real life, and evenings that aren't infinite. He hasn't built the side project he wants because the only side projects that fit his life are *small*, and small is hard to take seriously in a world that valorizes the unicorn pitch.

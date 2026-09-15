@@ -2,23 +2,30 @@
 
 Have your state and eat it too.
 
-Agent Architect — an idle game about building a billion-dollar AI company from a
-blank prompt. You design and deploy agents, they work for you in 90-minute cycles,
-and you learn real orchestration and observability patterns through play.
-Everything runs locally against Ollama; there are no API costs.
+An idle game about running a billion-dollar AI company from its console. You
+co-founded Spaghetti Systems; your partner built and ran the system and is
+gone; you have their console, six months of runway, and a company that burns
+more than it earns. Learn the console well enough to turn the burn into
+profit, or go bankrupt and start again with what you learned. Real terms,
+real screens, fake tokens. Everything runs locally against Ollama; there are
+no API costs.
 
-This branch (`browser-version`) holds a browser port alongside the original
-Textual TUI. They share the same canon (prompts, voice, beats) but each owns
-its own rendering layer.
+**Status (2026-09-15):** the design pivoted to the enterprise console. The
+code on this branch is the pre-pivot prototype: a chat cockpit with an intro
+sequence, a signal row, a speed slider, a motion library and an audio engine.
+The intro, motion, signals and server carry forward; the chat cockpit and the
+Python TUI are being retired. Design lives in `docs/` — start with
+`docs/D-Design-Exploration/01-v-shape-prestige.md`, then
+`docs/A-Product-Brief/product-brief.md` (v1.1).
 
 ```text
-┌─ src/spaghetti/         python — textual TUI       (run with `spaghetti` cli)
+┌─ src/spaghetti/         python — textual TUI       (retired; kept until the console lands)
 ├─ src/server/            bun    — web server + ollama proxy
-├─ src/client/            svelte — web ui
+├─ src/client/            svelte — web ui (pre-pivot cockpit)
 │  ├─ App.svelte          awakening scene orchestrator
-│  ├─ agent.ts            system prompts (mirror of python/agent.py)
+│  ├─ agent.ts            system prompts (pre-pivot partner voice)
 │  ├─ components/         BlinkingLight, Banner, Header, ChatLog, ChatMessage, Input, ModelSelect
-│  ├─ stores/             chat / ollama / boot — Svelte 5 rune stores
+│  ├─ stores/             chat / ollama / boot / telemetry / speed — Svelte 5 rune stores
 │  └─ motion/             d3-ease wrappers, spring solver, arc paths, typewriter,
 │                         sparks, flares, thought arcs
 └─ src/svelte-plugin.ts   tiny Bun plugin: .svelte and .svelte.ts → ESM

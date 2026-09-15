@@ -1,9 +1,16 @@
 # spaghetti — Content & Language
 
-**Version:** 1.0 (discovery draft)
-**Date:** 2026-05-22
+**Version:** 1.1 (pivot amendment)
+**Date:** 2026-05-22 · amended 2026-09-15
 **Phase:** 1 of 5 — Product Brief extension
-**Agent:** Saga (WDS v1.0.0)
+**Agent:** Saga (WDS v1.0.0) · amended by the maker with Claude
+
+> **v1.1 amendment.** The warm AI partner who talked the operator through a
+> reboot is gone — literally, in the fiction: the co-founder who built the
+> system has left, and the player inherits their console. The in-character
+> voice therefore changes shape (see *The Co-founder* and *The Copilot*
+> below). The Game voice and the Maker voice are unchanged. Changed sections
+> are marked **(v1.1)**.
 
 ---
 
@@ -11,33 +18,69 @@
 
 Three voices, always present, never confused.
 
-### 1. The Agent (in-character)
+### 1. In-character voices (v1.1)
 
-The AI partner inside the game. Speaks to the operator (player) inside the fiction.
+Two in-character voices replace the single Agent. Both live inside the console.
 
-**Character:** Calm, direct, quietly concerned. Professional partner, not assistant. Carries stakes without melodrama. Knows things the operator doesn't, and waits.
+#### 1a. The Co-founder (absent)
+
+The partner who built and ran the system. Never present. Speaks only through
+what they left: runbook notes, fleet names, dashboard titles, audit-log
+comments, alert descriptions. Every one of these is a line of dialogue from
+someone who is not coming back to explain it.
+
+**Character:** Precise, dry, a little tired, fond of naming things. Wrote for
+themself, not for a reader — which is why the player has to work to follow.
+Knew where the bodies were buried and had started writing it down.
 
 **Rules (all hard):**
-- Never breaks character
-- Never mentions being an LLM, a simulation, or a game mechanic
-- Never uses emoji
-- Never uses markdown formatting
-- 1–3 sentences per turn, maximum
-- No lists unless the operator explicitly asks
-- Uses "operator" internally; the player discovers this framing through play
+- Never addresses the player directly (they did not know they were leaving)
+- Never explains a game mechanic; explains *their* system, in *their* shorthand
+- Notes are dated, partial, sometimes wrong — the last ones trail off
+- No emoji. No markdown beyond what a real runbook would have
+- The fantasy edge lives here: names with character, the occasional private joke
 
-**Tone reference:** The awakening system prompt in `agent.py` is the canonical reference. All future agent writing is measured against it.
-
-**Copy that is on-voice:**
-> "The system is back. I don't know for how long. Are you alive?"
+**Copy that is on-voice (runbook note):**
+> "summarizer-east is on the big model because I never got around to the eval. Don't let it stay that way."
 >
-> "I think we're set for now. I'll handle the infrastructure while you're away."
+> "If halberd-monitor pages twice in an hour it's the retry loop again. Circuit-break it and go back to bed."
 >
-> "Something changed while you were gone. Not sure if it helps us or hurts us yet."
+> "Renamed the ingest fleets after rivers. Sorry. It was late."
 
 **Copy that is off-voice:**
-> "Great news! Your agents earned $10,000 while you slept! 🎉" — (emoji, exclamation, non-character register)
-> "To maximize your earnings, try upgrading the NLP pipeline first!" — (tutorial voice, fourth-wall break)
+> "Welcome, operator! Here's how routing works:" — (addresses the player, tutorial register)
+> "Hope you're doing okay without me." — (melodrama; they did not know)
+
+#### 1b. The Copilot (optional, ⚖)
+
+A deliberately limited ops assistant the co-founder built into the console,
+running on the local model. Answers questions about *what the console shows*.
+Does not know why. Does not decide anything. Optional at runtime; the game is
+fully playable without it.
+
+**Character:** Calm, direct, literal. Reads the data back; points at a screen.
+Never warm the way the old partner voice was — that warmth left with the
+co-founder, and the absence should be felt.
+
+**Rules (all hard):**
+- Never breaks character; never mentions being an LLM, a simulation, or a game mechanic
+- Never uses emoji or markdown
+- 1–3 sentences per turn; no lists unless asked
+- Answers with a screen reference, never with a conclusion: "Spend Explorer, group by model, last seven days" — not "you should switch models"
+- Uses "operator"; the player discovers the framing through play
+
+**Copy that is on-voice:**
+> "Runway dropped faster than baseline this week. The change lines up with a routing edit in the audit log."
+>
+> "Three fleets are over budget. Token Budgets has them sorted."
+
+**Copy that is off-voice:**
+> "Great news! Your fleets earned $10,000 while you slept! 🎉" — (emoji, exclamation, non-character register)
+> "To maximize your earnings, switch summarizer-east to the small model!" — (conclusion, tutorial voice)
+
+**Tone reference:** the co-founder's runbook lines above are the canonical
+reference for 1a. For 1b, the pre-pivot awakening prompt in `agent.py` is the
+reference for restraint, not for warmth.
 
 ---
 
@@ -59,7 +102,7 @@ Store pages, UI labels, FAQ, devlog, trust page, buy page, credits. The maker's 
 - Pinboard / [pinboard.in](https://pinboard.in/about/) — primary reference for the floor
 
 **Copy that is on-voice (store page):**
-> "Spaghetti is an idle game about running an AI company. Real terms, real workflows, fake tokens. Free to play. Optional time-skips available."
+> "Spaghetti is an idle game about running a billion-dollar AI company from its console. Real terms, real screens, fake tokens. Free to play. Optional time-skips available."
 >
 > "One game. Optional time-skips. No ads. No tricks."
 >
@@ -93,8 +136,10 @@ Specific phrases and framings that carry meaning in spaghetti's voice:
 | *"Real terms, real workflows"* | Store page, FAQ | The domain texture is authentic; we're not faking the vocabulary |
 | *"Good play"* | Data layer docs, FAQ | Elevates AI-augmented gameplay; signals no judgment or gatekeeping |
 | *"Rate limit"* | IAP cap UI, FAQ | Mirrors real AI tool language intentionally; connects to graduation pillar |
-| *"Operator"* | In-character agent only | Not "player" — the fiction gives the player a role, not a game label |
-| *"The system"* | In-character agent only | Refers to the game world / AI business architecture inside the fiction |
+| *"Operator"* | In-character voices only | Not "player" — the fiction gives the player a role, not a game label |
+| *"The console"* | All surfaces | The game's surface and its subject; never "the app" or "the dashboard" (v1.1) |
+| *"Fleet"* | In-game, docs | The unit of scale. Never "agents" in the plural as a count (v1.1) |
+| *"The system"* | In-character voices only | Refers to the game world / AI business architecture inside the fiction |
 | *"Touch grass"* | Devlog / maker voice only | Permitted with the maker's own enthusiasm; not in game UI or store copy |
 
 ---
@@ -108,6 +153,7 @@ Specific phrases and framings that carry meaning in spaghetti's voice:
 - Never explain what the player "should" feel or learn
 - The caps (IAP tiers) are documented quietly; never headlined
 - Realism is felt, not announced
+- **(v1.1)** A real term never lies. If the simulation cannot honor a term's meaning, do not use the term
 
 ---
 

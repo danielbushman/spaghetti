@@ -1,9 +1,18 @@
 # spaghetti — Product Brief
 
-**Version:** 1.0 (discovery draft)
-**Date:** 2026-05-22
+**Version:** 1.1 (pivot amendment)
+**Date:** 2026-05-22 · amended 2026-09-15
 **Phase:** 1 of 5 — Product Brief
-**Agent:** Saga (WDS v1.0.0)
+**Agent:** Saga (WDS v1.0.0) · amended by the maker with Claude
+
+> **v1.1 amendment (2026-09-15).** The game pivoted from a chat cockpit with a
+> handful of agents to an **enterprise admin console** for a Quickbase-scale
+> AI company, with a **V-shaped** progression (start rich and burning, learn
+> the system or go bankrupt, bankruptcy is prestige). Design detail lives in
+> `docs/D-Design-Exploration/01-v-shape-prestige.md`. This Brief is amended in
+> place; sections that changed are marked **(v1.1)**. The health commitments
+> are unchanged in substance but re-ranked: they are constraints on what
+> ships, not the generator of the design. Fun is.
 
 ---
 
@@ -11,24 +20,48 @@
 
 **Mission:** Make the AI-tycoon power fantasy genuinely fun — and let the players who lean in absorb real orchestration intuition, and the discipline not to be wrecked by it, as a byproduct.
 
-**North star:** Fun. If realism or the health goal ever conflict with fun, fun wins.
+**North star:** Fun. If realism or the health goal ever conflict with fun, fun wins. **(v1.1)** This now applies to the design process too: find the fun first; apply the health rules as fit and finish on what ships.
 
-**The fantasy being served:** "I'm making serious money having AI do the work for me." Universal resonance right now — from players who have never written a line of code to senior agentic engineers. The game gives them the experience of the fantasy before they have to pay for the real thing.
+**The fantasy being served (v1.1):** *"I'm running a billion-dollar AI company, and I can see all of it from here."* Universal resonance right now — from players who have never written a line of code to senior agentic engineers. The game gives them the seat before they have to earn it.
 
-**Realism's role:** Suspension-of-disbelief amplifier, not curriculum. Real industry terms and real AI orchestration patterns make the fantasy feel real. Players who lean in develop transferable skills as a byproduct — not because the game teaches them, but because the domain texture is authentic. Like a high-fidelity flight simulator: the skill transfers without the game announcing itself as training.
+**Realism's role (v1.1):** Realism of *vocabulary*, not of *simulation*. Real industry terms and real orchestration concepts make the fantasy feel real; a term never lies. The simulation behind each term is as simple as fun allows. Players who lean in develop transferable intuition as a byproduct — not because the game teaches them, but because the domain texture is authentic. A high-fidelity flight simulator with a simplified weather model.
 
-**The 90-minute biorhythm:** Encoded in the economy's diminishing-returns curves. Never named, never explained, never preached. The agent may softly hint at natural stopping points. Players discover it through optimization.
+**The 90-minute biorhythm:** Encoded in the economy's diminishing-returns curves. Never named, never explained, never preached. Players discover it through optimization.
 
 ---
 
 ## The Three Pillars
 
-### Pillar 1 — The Game and Fantasy
+### Pillar 1 — The Game and Fantasy (v1.1)
 
-An idle game about running an AI company. The player wakes up as an operator in a cockpit: their AI business is already running, a client contract is active, and neither the operator nor their agent remembers what happened. System coming back online. So are they.
+An idle game about running an AI enterprise the size of Quickbase. The player
+co-founded **Spaghetti Systems** with a partner who built and ran the system —
+the fleets, the routing, the dashboards, the naming — and who is now gone. The
+player logs into that partner's console for the first time as its operator,
+with six months of runway and a company that burns more than it earns.
+
+**The console is the game.** Mastery is knowing which screen, which filter,
+which drill-down finds the bleed. Screens are rooms; drill-downs are doors;
+knowing the map is knowing the system. One decision per screen: more rooms
+than a real console, fewer choices in each, so the information architecture is
+chosen by fun rather than by enterprise realism.
+
+**The V-shape.** Start rich and burning. The slope of the cash curve is the
+score, and the slope is what the player can change today. Bend it to profit
+and the run is won. Hit zero first and the company folds — bankruptcy is a
+ceremony (a blameless post-mortem) and a restart with what the player learned
+and wrote down. Not a fail screen.
+
+**The one loop:** notice → investigate → act → wait → verify. A novice takes
+twenty minutes per cycle; an expert takes ninety seconds. Compressing that loop
+over about a month of play is the progression.
 
 **Core emotional target — the walk-away, not the play:**
-The player should feel *better* about closing the game than opening it. Pride in stepping away. Confidence in the setup. Anticipation for the next window. The operator who maximizes this game is the one who learns when to leave.
+The player should feel *better* about closing the game than opening it. In the
+V-shape that pride comes from the slope ("that bought four days"), from a
+system configured to run unattended, and from anticipation of tomorrow's
+signal. The operator who maximizes this game is the one who learns when to
+leave.
 
 **Diminishing-returns curves (design constraints, not guidelines):**
 
@@ -38,27 +71,35 @@ The player should feel *better* about closing the game than opening it. Pride in
 | Weekend session | — | 30 minutes | 90 minutes | 90 min × 4 |
 
 These curves must be produced by the economy's actual math. Not approximated.
+**(v1.1)** They are to be re-derived for the V-shape economy; the session
+shape they describe (sharp move / tune / deep investigation) still holds.
 
-**The 90-min through-line:** About once a week the rhythm inverts — long planning sessions (weekend deep play up to 4 × 90 min) set up the automation that runs the rest of the week. The game rewards this cadence mechanically.
+**The 90-min through-line:** About once a week the rhythm inverts — long
+investigation sessions (weekend deep play up to 4 × 90 min) set up the
+policies and dashboards that run the rest of the week. The game rewards this
+cadence mechanically.
 
-**Anti-addiction design — a hard design rule:**
+**Health rules — hard constraints on what ships (v1.1 re-ranked, not weakened):**
 - No streak penalties (daily check-in gift exists; missing costs nothing)
-- No energy systems that lock out gameplay
+- No energy systems that lock out gameplay; bankruptcy is an instant restart
 - No loot boxes, no FOMO timers, no compulsion-loop mechanics
 - No re-engagement push notifications
-- Designed for *avg 4 hrs/wk*. If avg crosses 20 hrs/wk, that is a bug, not a feature.
+- Designed for *avg 4 hrs/wk* play mode. If avg crosses 20 hrs/wk, that is a bug, not a feature.
+- Absence is never punished *extra*: the business runs at the rate the player's configuration dictates, and configuring for absence is itself a lever the player learns.
 
-### Pillar 2 — Real-Tool Simulation
+### Pillar 2 — Real-Tool Simulation (v1.1)
 
-The game uses real AI industry terminology and real agent orchestration concepts because that is what makes the fantasy feel real — not because the player must learn them.
+The game uses real AI industry terminology and real orchestration concepts because that is what makes the fantasy feel real — not because the player must learn them.
 
-**Model constraint (hard limit):** Local Ollama only. No paid APIs, ever. The game simulates big-model behavior using local models (Gemma-class is sufficient — it needs to sound smart enough to write code, not to actually write production code).
+**Fidelity rule:** *realism of vocabulary, not of simulation.* p99, token budget, rate limit, fleet, workload, routing policy, spend anomaly, error budget, retry storm, cache hit rate, SLA — all real, all meaning what they mean in the industry. The math behind them is aggregate (fleets as populations, tokens as rates) and simplified until the loop is fun.
 
-**Skill ceiling:** The hypothetical #1 player would be meaningfully prepared to manage a real AI coding project — having internalized rate-limit budgeting, agent coordination, resource allocation, and attention/time discipline. This is not marketed; it is a natural consequence of authentic domain texture.
+**Model constraint (hard limit):** Local Ollama only. No paid APIs, ever. **(v1.1)** The LLM is flavor, not authority: it narrates and hints (runbooks, post-mortems, an optional limited copilot) and never decides outcomes. The game must be fully playable with Ollama unreachable.
+
+**Skill ceiling:** The hypothetical #1 player would be meaningfully prepared to run cost and reliability for a real AI product — having internalized token budgeting, model tiering, error budgets, routing, observability, and attention/time discipline. Not marketed; a natural consequence of authentic texture.
 
 **What "real" means and does not mean:**
-- Real: terms, concepts, agent relationship dynamics, operational patterns, rate-limit structures
-- Not real: the AI actually writing code, the tokens actually being spent, the "big" models actually being called
+- Real: terms, concepts, the shape of the levers, the shape of the console
+- Not real: the AI actually doing the work, the tokens actually being spent, the "big" models actually being called, the full fidelity of an enterprise console
 - The line: *"the game world is simulated; the graduation surface is real"*
 
 ### Pillar 3 — The Open Data Layer
@@ -70,6 +111,8 @@ The player can access their own game data: resource values, cooldown timings, up
 - **CLI-accessible** (companion CLI planned — not MVP)
 - **Curated, not exhaustive** — raw data that rewards analysis, not isolated metric values that do the analysis
 
+**(v1.1)** The data layer is now structural: the simulation is event-sourced, so export is the event log plus a state snapshot. The bankruptcy post-mortem and the player's saved dashboards are its first artifacts and carry across prestige.
+
 **This is explicitly not cheating. It is good play.**
 
 This surface is where the game world and the real world touch. The player uses a real AI agent to optimize a simulated AI business. The skill of "give an AI agent access to data and have it help you make decisions" is the same skill in both contexts. The graduation happens naturally, without announcement.
@@ -80,13 +123,13 @@ No competitor in the AI-tycoon idle niche offers this. It is the most defensible
 
 ## Positioning
 
-**Primary hook:** *"Play the AI tycoon fantasy before paying for it."*
+**Primary hook (v1.1):** *"Run the billion-dollar AI company before anyone gives you one."*
 
 **The insight:** Every persona is adjacent to the AI economy and feels the FOMO. The wall between them and the real thing is some combination of money, product vision, and skill. The game removes all three walls simultaneously: no real money required, no product idea required, no coding background required.
 
 **Competitive positioning:**
-- vs. existing AI idle games (8+ titles, all Cookie Clicker formula with AI flavor): real-tool texture, open data layer, health-first design. None of them do any of these three.
-- vs. real AI tools (Claude Code, Codex): no token bill, no prerequisite product vision or skill, no failure risk
+- vs. existing AI idle games (8+ titles, all Cookie Clicker formula with AI flavor): real-tool texture, open data layer, health-first design, and a console you actually learn. None of them do any of these.
+- vs. real AI tools (Claude Code, Codex, cloud consoles): no token bill, no prerequisite product or skill, no failure risk
 - vs. YouTube AI hype content (the actual attention competitor): the fantasy embodied and interactive, not just described
 
 **Unfair-advantage hierarchy:**
@@ -109,7 +152,7 @@ No competitor in the AI-tycoon idle niche offers this. It is the most defensible
 
 **What they have:** Imagination, time, parental WiFi.
 **What they lack:** Money, agency, any path to the real thing.
-**What the game gives:** The fantasy at allowance prices. First taste of "I built this and it runs while I sleep."
+**What the game gives:** The seat at allowance prices. First taste of "I run this and it runs while I sleep."
 
 ### Jordan — 22yo, Junior Dev
 
@@ -117,7 +160,7 @@ No competitor in the AI-tycoon idle niche offers this. It is the most defensible
 
 **What they have:** Basic coding skills, technical curiosity.
 **What they lack:** Product vision, tycoon courage, budget confidence.
-**What the game gives:** Orchestration pattern recognition, cheap practice managing AI agents, intuition for what's worth building.
+**What the game gives:** Pattern recognition for cost and reliability at scale, cheap practice reading a system someone else built, intuition for what's worth building.
 
 ### Sam — 34yo, Senior Agentic Engineer
 
@@ -127,12 +170,12 @@ No competitor in the AI-tycoon idle niche offers this. It is the most defensible
 **What they lack:** Product vision, conviction to spend $200/mo on themselves.
 **What the game gives:** A sandbox to find a product idea, permission to play with the skill outside the day job, a community of people doing the same.
 
-**Sam's session pattern (design reference):**
-- 90-second check-in: collect resources or spend auto-collected on day-aligned upgrades. Feeling: smart, in control, "I picked the best move in 90 seconds."
-- 5–10 min morning: tune the day's automation setup. Feeling: productive, confident, "it'll run without me."
-- Weekend 90-min session: real optimization toward the goal he's saving for. Feeling: mastermind.
+**Sam's session pattern (design reference, v1.1):**
+- 90-second check-in: Overview, one anomaly, one policy change. Feeling: smart, in control, "I picked the best move in 90 seconds."
+- 5–10 min morning: tune budgets, alerts and routing for the day. Feeling: productive, confident, "it'll run without me."
+- Weekend 90-min session: deep investigation in Spend Explorer, compose the dashboard that shows the next bleed. Feeling: mastermind.
 - Walk-away: better than opening. Pride. Trust in the setup. Anticipation for tomorrow.
-- Overnight return: wakes to $100 / $1k / $1M earned while sleeping. Bliss.
+- Overnight return: the sparkline moved the way he predicted. Bliss.
 
 ### Riley — 38yo, Stratechery PM
 
@@ -140,7 +183,7 @@ No competitor in the AI-tycoon idle niche offers this. It is the most defensible
 
 **What they have:** Business intuition, capital instincts, strategic thinking.
 **What they lack:** Code, the ability to ship.
-**What the game gives:** Operator-mode embodiment of the strategy they already think about.
+**What the game gives:** Operator-mode embodiment of the strategy they already think about. **(v1.1)** Riley is now closer to the protagonist than anyone: the business co-founder handed the builder's console.
 
 ### The Pocket-Fantasy Player (archetype, any age)
 
@@ -188,12 +231,13 @@ Plays for years. Never intends to "graduate" to real AI work. The fantasy is the
 
 | Constraint | Status |
 |---|---|
-| **Build stack** | Browser (d3-rendered fake TUI, `browser-version` branch). Dev surface, not final platform. Port strategy is low-friction — maker recently ported a JS library to Rust via prompt loops. |
-| **AI models** | **Local Ollama only. Hard limit.** No paid APIs. Gemma-class sufficient. Simulating big models, not calling them. |
+| **Build stack (v1.1)** | Browser console: Bun server + Svelte 5 client, deterministic TypeScript simulation, event-sourced persistence. The chat cockpit and the Python Textual TUI are retired; the intro sequence, motion library, signal row and speed slider carry over. Dev surface, not final platform. |
+| **AI models** | **Local Ollama only. Hard limit.** No paid APIs. Gemma-class sufficient. Flavor, never authority; playable with Ollama off. |
 | **Team** | Solo. Claude Max for AI-assisted development. Few hours/week of human time, heavily multiplied by autonomous AI work against good specs. |
-| **Timeline** | Soft: 6 months. Hard: 12 months. Market-timing-sensitive (AI fantasy buzz is a now-or-close window). |
+| **Timeline** | Soft: 6 months. Hard: 12 months. Market-timing-sensitive (AI fantasy buzz is a now-or-close window). **(v1.1)** Clock restarts from the pivot date for planning purposes. |
 | **Audience floor** | 13+. No COPPA/minor-specific compliance burden. |
-| **Age rating target** | E10+ / T. The awakening fiction ("fragile contract, system down") is appropriate for this range. Confirm as fiction expands. |
+| **Age rating target** | E10+ / T. The fiction ("your co-founder is gone, the company is burning") is appropriate for this range. Confirm as fiction expands. |
+| **Accessibility (v1.1)** | Colorblind-safe palettes throughout. The maker cannot distinguish green from amber; no status or chart may depend on hue alone. |
 | **Distribution / payment processing** | Deferred. See Business Model note. |
 
 **Architectural principle (non-negotiable):** *"The game world is simulated; the graduation surface is real."* Ollama runs in-game. The player's own real AI tools access the data layer. Two clean worlds, separated by the save-file boundary.
@@ -205,7 +249,10 @@ Plays for years. Never intends to "graduate" to real AI work. The fantasy is the
 - Specific dollar values for tiered IAP caps (playtesting-dependent)
 - Final build platform (browser PWA, Electron wrapper, native — defer to post-MVP)
 - Distribution platform (Steam, itch.io, App Store, direct — defer to closer to launch)
-- In-game economy design: what resources exist, their rates, how they map to real AI ops concepts
+- **(v1.1)** In-game economy design at enterprise scale: fleets, workloads, model tiers, customers, and the aggregate math that produces the V — see the design exploration doc
+- **(v1.1)** The co-founder: name, departure, how much of their voice survives
+- **(v1.1)** Whether any in-character LLM voice survives (leaning: an optional, deliberately limited copilot the co-founder built)
+- **(v1.1)** First-run length (working assumption: about one real month) and the sim-clock mapping (1 real day = 1 sim-week)
 - Research: evidence-based literature on healthy gaming hours/week — needed before mechanics finalize
 - Payment gate flavor: does the "complete game" unlock have in-fiction framing or is it a naked paywall? (Lean: naked clarity per maker's trust-first stance)
 - `docs/C-UX-Scenarios/` — Freya's work
