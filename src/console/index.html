@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>spaghetti :: console</title>
+    <!--
+      No external resources. System fonts only (theme.css). /console.css and
+      /console.js are same-origin build outputs: Bun emits the CSS reachable
+      from src/console/main.ts as console.css (see src/build.ts), and this
+      <link> is how it reaches the page. The inline rules below only keep
+      the first paint dark and still while that stylesheet loads.
+    -->
+    <link rel="stylesheet" href="/console.css" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #0D0D12; color-scheme: dark; }
+      #app { height: 100%; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/console.js"></script>
+  </body>
+</html>
